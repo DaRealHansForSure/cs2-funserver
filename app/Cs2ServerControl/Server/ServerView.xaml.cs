@@ -31,20 +31,23 @@ public partial class ServerView : UserControl {
 
     /// <summary>
     /// Keeps the newest line in view, but only while the user has not
-    /// scrolled up to read something.
+    /// scrolled up to read something. Only a scroll of the user changes the
+    /// toggle: new lines and old ones dropped at the top move the offset as
+    /// well, and must neither turn Follow off nor back on after a click on it.
     /// </summary>
     private void OnConsoleScrolled(object sender, ScrollChangedEventArgs e) {
         if (_consoleScroll == null) {
             return;
         }
-        bool contentGrew = e.ExtentHeightChange > 0;
-        if (contentGrew) {
+        bool isUserScroll = e.ExtentHeightChange == 0 && e.ViewportHeightChange == 0 && e.VerticalChange != 0;
+        if (!isUserScroll) {
             return;
         }
         bool isAtEnd = _consoleScroll.VerticalOffset >= _consoleScroll.ScrollableHeight - 2;
-        // Only the user scrolling up turns Follow off; scrolling back down turns it on again.
-        if (isAtEnd != FollowToggle.IsChecked) {
-            FollowToggle.IsChecked = isAtEnd;
+        if (e.VerticalChange < 0 && FollowToggle.IsChecked == true) {
+            FollowToggle.IsChecked = false;
+        } else if (e.VerticalChange > 0 && isAtEnd && FollowToggle.IsChecked != true) {
+            FollowToggle.IsChecked = true;
         }
     }
 
