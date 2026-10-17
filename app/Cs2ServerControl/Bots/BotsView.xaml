@@ -128,9 +128,6 @@
                             <CheckBox Style="{StaticResource OptionCheckBox}" IsChecked="{Binding AutoVacate}">
                                 <TextBlock>Bots make room for real players <Run Text="bot_auto_vacate" Style="{StaticResource CvarName}" /></TextBlock>
                             </CheckBox>
-                            <CheckBox Style="{StaticResource OptionCheckBox}" IsChecked="{Binding DeathmatchOnly}">
-                                <TextBlock>Only fight, no bomb or hostages <Run Text="bot_deathmatch" Style="{StaticResource CvarName}" /></TextBlock>
-                            </CheckBox>
                             <CheckBox Style="{StaticResource OptionCheckBox}" IsChecked="{Binding DeferToHuman}" Margin="0">
                                 <TextBlock>Players take over the objectives <Run Text="bot_defer_to_human" Style="{StaticResource CvarName}" /></TextBlock>
                             </CheckBox>
@@ -149,7 +146,6 @@
                                 <CheckBox Content="Sniper rifles" Style="{StaticResource OptionCheckBox}" IsChecked="{Binding AllowSnipers}" />
                                 <CheckBox Content="Machine guns" Style="{StaticResource OptionCheckBox}" IsChecked="{Binding AllowMachineGuns}" />
                                 <CheckBox Content="Grenades" Style="{StaticResource OptionCheckBox}" IsChecked="{Binding AllowGrenades}" />
-                                <CheckBox Content="Shield" Style="{StaticResource OptionCheckBox}" IsChecked="{Binding AllowShield}" />
                             </UniformGrid>
                             <TextBlock Text="Radio and chat" Style="{StaticResource LabelText}" Margin="0,4,0,6" />
                             <ComboBox Style="{StaticResource Select}" MaxWidth="{StaticResource SelectMaxWidth}" HorizontalAlignment="Left"

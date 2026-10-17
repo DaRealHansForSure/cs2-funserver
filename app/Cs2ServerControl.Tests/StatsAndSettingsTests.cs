@@ -7,13 +7,14 @@ namespace Cs2ServerControl.Tests;
 
 public class StatsTests {
     private static readonly string[] GameLog = [
-        "L 10/17/2026 - 00:34:10: Started map \"fy_iceworld\" (CRC \"1458019751\")",
-        "L 10/17/2026 - 00:34:24: \"Peter<3><STEAM_ID_LAN><CT>\" killed \"bjaren<29><BOT><TERRORIST>\" with \"ak47\"",
-        "L 10/17/2026 - 00:34:30: \"Peter<3><STEAM_ID_LAN><CT>\" killed \"Simon<4><STEAM_ID_LAN><TERRORIST>\" with \"knife\"",
-        "L 10/17/2026 - 00:34:40: \"Peter<3><STEAM_ID_LAN><CT>\" killed \"bjaren<29><BOT><TERRORIST>\" with \"ak47\"",
-        "L 10/17/2026 - 00:35:00: \"bjaren<29><BOT><TERRORIST>\" killed \"Peter<3><STEAM_ID_LAN><CT>\" with \"grenade\"",
-        "L 10/17/2026 - 00:35:10: \"Simon<4><STEAM_ID_LAN><TERRORIST>\" committed suicide with \"world\"",
-        "L 10/17/2026 - 00:35:20: \"Simon<4><STEAM_ID_LAN><TERRORIST>\" say \"Peter killed me with knife\"",
+        "L 10/17/2026 - 00:34:10: -------- Mapchange to de_dust2 --------",
+        "L 10/17/2026 - 00:34:24: \"Peter<3><76561197960287930><CT>\" killed \"bjaren<29><BOT><TERRORIST>\" with \"ak47\"",
+        "L 10/17/2026 - 00:34:30: \"Peter<3><76561197960287930><CT>\" killed \"Simon<4><76561197960287931><TERRORIST>\" with \"knife_t\" (headshot)",
+        "L 10/17/2026 - 00:34:40: \"Peter<3><76561197960287930><CT>\" killed \"bjaren<29><BOT><TERRORIST>\" with \"ak47\"",
+        // CS2's own game log format, with the positions.
+        "L 10/17/2026 - 00:35:00: \"bjaren<29><BOT><TERRORIST>\" [81 -1549 -176] killed \"Peter<3><[U:1:22202]><CT>\" [212 -1560 -175] with \"hegrenade\"",
+        "L 10/17/2026 - 00:35:10: \"Simon<4><76561197960287931><TERRORIST>\" committed suicide with \"world\"",
+        "L 10/17/2026 - 00:35:20: \"Simon<4><76561197960287931><TERRORIST>\" say \"Peter killed me with knife\"",
     ];
 
     [Fact]
@@ -49,9 +50,9 @@ public class StatsTests {
     public void ListsMapsWithModeAndDuration() {
         string[] amxLog = [
             "L 10/17/2026 - 00:27:57: -------- Mapchange to de_rats --------",
-            "L 10/17/2026 - 00:27:57: [fun_modes.amxx] Active mode: classic",
+            "L 10/17/2026 - 00:27:57: Active mode: classic",
             "L 10/17/2026 - 00:34:09: -------- Mapchange to fy_iceworld --------",
-            "L 10/17/2026 - 00:34:10: [fun_modes.amxx] Active mode: deathmatch",
+            "L 10/17/2026 - 00:34:10: Active mode: deathmatch",
         ];
         var now = new DateTime(2026, 10, 17, 0, 50, 9);
 

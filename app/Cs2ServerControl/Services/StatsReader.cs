@@ -13,41 +13,42 @@ public sealed record PlayerStats(
 public sealed record MapPlay(string Map, string? ModeId, DateTime StartedAt, TimeSpan Duration, bool IsRunning);
 
 /// <summary>
-/// Builds the evening's statistics from the plain text logs the server
-/// writes anyway: HLDS logs every kill (killer, victim, weapon, BOT marker),
-/// AMX Mod X every map change and the mode that came with it.
+/// Builds the evening's statistics from the FunServer plugin's daily log
+/// (addons\counterstrikesharp\logs\fun-yyyyMMdd.log): every kill (killer,
+/// victim, weapon, BOT marker), every map change and the mode that came with
+/// it, in the HLDS log format of the CS 1.6 server.
 /// </summary>
 public sealed partial class StatsReader(PackagePaths paths) {
-    /// <summary>Kills since the given time, or of the newest log (the running map) when null.</summary>
+    /// <summary>Kills since the given time, or of the running map (since its last map change) when null.</summary>
     public IReadOnlyList<PlayerStats> ReadLeaderboard(DateTime? since) {
-        if (!Directory.Exists(paths.GameLogsDir)) {
+        List<FileInfo> logs = FunLogs(since ?? DateTime.MinValue);
+        if (since != null) {
+            return BuildLeaderboard(logs.SelectMany(ReadLinesShared), since);
+        }
+        if (logs.Count == 0) {
             return [];
         }
-
-        List<FileInfo> logs = new DirectoryInfo(paths.GameLogsDir).GetFiles("L*.log")
-            .OrderBy(file => file.LastWriteTime)
-            .ToList();
-        if (since == null) {
-            // HLDS starts a new log file on every map.
-            logs = logs.Count == 0 ? [] : [logs[^1]];
-        } else {
-            logs = logs.Where(file => file.LastWriteTime >= since.Value).ToList();
-        }
-
-        return BuildLeaderboard(logs.SelectMany(ReadLinesShared), since);
+        // One log holds the whole day; the running map starts at its last map change.
+        List<string> lines = ReadLinesShared(logs[^1]).ToList();
+        int lastMapChange = lines.FindLastIndex(line => MapChangeLine().IsMatch(line));
+        return BuildLeaderboard(lastMapChange < 0 ? lines : lines.Skip(lastMapChange), since: null);
     }
 
     /// <summary>The maps since the given time with how long each one ran.</summary>
     public IReadOnlyList<MapPlay> ReadMapsPlayed(DateTime since, DateTime now, bool isServerRunning) {
+        IEnumerable<string> lines = FunLogs(since).SelectMany(ReadLinesShared);
+        return BuildMapsPlayed(lines, since, now, isServerRunning);
+    }
+
+    /// <summary>The FunServer plugin's daily logs that may hold lines since the given time, oldest first.</summary>
+    internal List<FileInfo> FunLogs(DateTime since) {
         if (!Directory.Exists(paths.PluginLogsDir)) {
             return [];
         }
-
-        IEnumerable<string> lines = new DirectoryInfo(paths.PluginLogsDir).GetFiles("L*.log")
+        return new DirectoryInfo(paths.PluginLogsDir).GetFiles("fun-*.log")
             .Where(file => file.LastWriteTime >= since)
-            .OrderBy(file => file.LastWriteTime)
-            .SelectMany(ReadLinesShared);
-        return BuildMapsPlayed(lines, since, now, isServerRunning);
+            .OrderBy(file => file.Name, StringComparer.Ordinal)
+            .ToList();
     }
 
     internal static IReadOnlyList<PlayerStats> BuildLeaderboard(IEnumerable<string> lines, DateTime? since) {
@@ -65,10 +66,11 @@ public sealed partial class StatsReader(PackagePaths paths) {
                 PlayerTally victim = Tally(players, kill.Groups["victim"].Value, kill.Groups["victimAuth"].Value);
                 killer.Kills++;
                 killer.CountWeapon(weapon);
-                if (weapon == "knife") {
+                // CS2 names knife skins (knife_t, bayonet ...) and the HE grenade its own way.
+                if (WeaponNames.IsKnife(weapon)) {
                     killer.KnifeKills++;
                 }
-                if (weapon == "grenade") {
+                if (weapon is "hegrenade" or "grenade") {
                     killer.GrenadeKills++;
                 }
                 victim.Deaths++;
@@ -149,10 +151,22 @@ public sealed partial class StatsReader(PackagePaths paths) {
         return DateTime.TryParseExact(text, "MM/dd/yyyy - HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out time);
     }
 
-    private static IEnumerable<string> ReadLinesShared(FileInfo file) {
+    /// <summary>A "-------- Mapchange to de_dust2 --------" line with its time.</summary>
+    internal static bool TryReadMapChange(string line, out string map, out DateTime startedAt) {
+        map = "";
+        startedAt = default;
+        Match mapChange = MapChangeLine().Match(line);
+        if (!mapChange.Success || !TryParseLogTime(mapChange.Groups["time"].Value, out startedAt)) {
+            return false;
+        }
+        map = mapChange.Groups["map"].Value;
+        return true;
+    }
+
+    internal static IEnumerable<string> ReadLinesShared(FileInfo file) {
         var lines = new List<string>();
         try {
-            // HLDS keeps the newest log open, so it has to be shared for reading.
+            // The plugin appends to today's log while the window reads it.
             using var stream = new FileStream(file.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
             using var reader = new StreamReader(stream);
             string? line;
@@ -184,8 +198,9 @@ public sealed partial class StatsReader(PackagePaths paths) {
         }
     }
 
-    // L 10/17/2026 - 00:34:24: "Peter<33><STEAM_ID_LAN><CT>" killed "Tom<29><BOT><TERRORIST>" with "sg552"
-    [GeneratedRegex(@"^L (?<time>\d{2}/\d{2}/\d{4} - \d{2}:\d{2}:\d{2}): ""(?<killer>.+?)<\d+><(?<killerAuth>[^>]*)><[^>]*>"" killed ""(?<victim>.+?)<\d+><(?<victimAuth>[^>]*)><[^>]*>"" with ""(?<weapon>[^""]+)""")]
+    // L 10/17/2026 - 00:34:24: "Peter<33><76561197960287930><CT>" killed "Tom<29><BOT><TERRORIST>" with "sg552"
+    // CS2's own game log puts the positions behind each name: "Peter<3><[U:1:1]><CT>" [81 -1549 -176] killed ...
+    [GeneratedRegex(@"^L (?<time>\d{2}/\d{2}/\d{4} - \d{2}:\d{2}:\d{2}): ""(?<killer>.+?)<\d+><(?<killerAuth>[^>]*)><[^>]*>""(?: \[[^\]]*\])? killed ""(?<victim>.+?)<\d+><(?<victimAuth>[^>]*)><[^>]*>""(?: \[[^\]]*\])? with ""(?<weapon>[^""]+)""")]
     private static partial Regex KillLine();
 
     // L 10/17/2026 - 00:39:00: "Peter<4><STEAM_ID_LAN><TERRORIST>" committed suicide with "world"
@@ -195,6 +210,6 @@ public sealed partial class StatsReader(PackagePaths paths) {
     [GeneratedRegex(@"^L (?<time>\d{2}/\d{2}/\d{4} - \d{2}:\d{2}:\d{2}): -------- Mapchange to (?<map>\S+) --------")]
     private static partial Regex MapChangeLine();
 
-    [GeneratedRegex(@"\[fun_modes\.amxx\] Active mode: (?<mode>\w+)")]
+    [GeneratedRegex(@"Active mode: (?<mode>\w+)")]
     private static partial Regex ActiveModeLine();
 }

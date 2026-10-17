@@ -46,9 +46,8 @@ public sealed class PackagePaths {
         return Path.Combine(FunConfigDir, "modes", modeId + ".cfg");
     }
 
-    public string GameLogsDir => Path.Combine(GameDir, "logs");
+    // CounterStrikeSharp's logs and the FunServer plugin's fun-yyyyMMdd.log for the Stats screen.
     public string PluginLogsDir => Path.Combine(AddonsDir, "counterstrikesharp", "logs");
-    public string BotProfileFile => Path.Combine(GameDir, "botprofile.db");
     public string ServerBaseConfigFile => Path.Combine(FunConfigDir, "modes", "base.cfg");
     public string SourceBaseConfigFile => Path.Combine(RootDir, "server-files", "csgo", "cfg", "fun", "modes", "base.cfg");
 

@@ -1,25 +1,46 @@
 using System.IO;
+using System.Text;
+using SteamDatabase.ValvePak;
 
 namespace Cs2ServerControl.Services;
 
 /// <summary>
-/// Reads zBot's BotProfile.db so a bot name can be mapped to its skill.
+/// Reads the bots' BotProfile.db so a bot name can be mapped to its skill.
+/// CS2 keeps the file (the same format as CS 1.6) in game\csgo\pak01_dir.vpk;
+/// a loose game\csgo\botprofile.db of the host wins, like in the game.
 /// The format: a "Default" block, "Template &lt;Name&gt;" blocks and named
 /// profiles "&lt;Template&gt;[+&lt;Template&gt;...] &lt;Name&gt;", each closed by "End",
 /// with "Key = Value" lines inside. Later templates and the profile itself
 /// override earlier values.
 /// </summary>
 public static class BotProfileReader {
-    public static IReadOnlyDictionary<string, int> ReadSkills(string profileFile) {
-        if (!File.Exists(profileFile)) {
-            return new Dictionary<string, int>();
-        }
+    private const string ProfileName = "botprofile.db";
 
+    public static IReadOnlyDictionary<string, int> ReadSkills(PackagePaths paths) {
         try {
-            return ParseSkills(File.ReadAllLines(profileFile));
-        } catch (IOException) {
+            string looseFile = Path.Combine(paths.GameDir, ProfileName);
+            if (File.Exists(looseFile)) {
+                return ParseSkills(File.ReadAllLines(looseFile));
+            }
+            string? packed = ReadFromGamePackage(Path.Combine(paths.GameDir, "pak01_dir.vpk"));
+            return packed == null ? new Dictionary<string, int>() : ParseSkills(packed.Split('\n'));
+        } catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException) {
             return new Dictionary<string, int>();
         }
+    }
+
+    private static string? ReadFromGamePackage(string packageFile) {
+        if (!File.Exists(packageFile)) {
+            return null;
+        }
+        using var package = new Package();
+        package.Read(packageFile);
+        PackageEntry? entry = package.FindEntry(ProfileName);
+        if (entry == null) {
+            return null;
+        }
+        package.ReadEntry(entry, out byte[] bytes);
+        return Encoding.UTF8.GetString(bytes);
     }
 
     internal static IReadOnlyDictionary<string, int> ParseSkills(IEnumerable<string> lines) {
