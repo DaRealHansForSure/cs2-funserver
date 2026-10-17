@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The CS2 side of the package: one CounterStrikeSharp plugin for the live
+       map feed, the fun modes and the admin commands of the window. Built by
+       the app's publish into plugins\FunServer next to the exe; the installer
+       copies that folder into game\csgo\addons\counterstrikesharp\plugins. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>FunServer</AssemblyName>
+    <RootNamespace>FunServer</RootNamespace>
+    <!-- CounterStrikeSharp loads the plugin dll itself; no app host, no deps file needed. -->
+    <GenerateDependencyFile>false</GenerateDependencyFile>
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Same version as the CounterStrikeSharp the installer puts on the server.
+         The API dll ships with CounterStrikeSharp, so it is not copied here. -->
+    <PackageReference Include="CounterStrikeSharp.API" Version="1.0.376" ExcludeAssets="runtime" />
+  </ItemGroup>
+
+</Project>

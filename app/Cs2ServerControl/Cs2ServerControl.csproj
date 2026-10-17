@@ -12,8 +12,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>Cs2ServerControl</AssemblyName>
     <RootNamespace>Cs2ServerControl</RootNamespace>
-    <Product>CS 1.6 Server Control</Product>
-    <Version>2.0.0</Version>
+    <Product>CS2 Server Control</Product>
+    <Version>0.1.0</Version>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>app.ico</ApplicationIcon>
     <PackageRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..\'))</PackageRoot>
@@ -56,16 +56,21 @@
     <Exec Command="dotnet test &quot;$(PackageRoot)app\Cs2ServerControl.Tests\Cs2ServerControl.Tests.csproj&quot; -nologo -v q --artifacts-path &quot;$(PackageRoot)app\.artifacts\tests&quot;" />
   </Target>
 
-  <!-- An open window or the fast download server (the same exe, running as
-       long as the game server runs) locks the exe. Windows still lets a
-       running exe be renamed, so the old one moves aside into
-       app\.artifacts\old and keeps running from there; the next start uses
-       the new one. Old copies that no longer run are cleared first. -->
-  <Target Name="CopyExeToPackageRoot" AfterTargets="Publish">
+  <!-- The FunServer plugin for the CS2 server is built with every publish into
+       plugins\FunServer next to the exe, where the installer picks it up. -->
+  <Target Name="BuildServerPlugin" AfterTargets="Publish">
+    <Exec Command="dotnet build &quot;$(PackageRoot)server-plugins\FunServer\FunServer.csproj&quot; -c Release -nologo -v q -o &quot;$(PackageRoot)plugins\FunServer&quot;" />
+  </Target>
+
+  <!-- An open window locks the exe. Windows still lets a running exe be
+       renamed, so the old one moves aside into app\.artifacts\old and keeps
+       running from there; the next start uses the new one. Old copies that no
+       longer run are cleared first. -->
+  <Target Name="CopyExeToPackageRoot" AfterTargets="BuildServerPlugin">
     <PropertyGroup>
-      <TargetExe>$(PackageRoot)4_SERVER_CONTROL.exe</TargetExe>
+      <TargetExe>$(PackageRoot)CS2_SERVER_CONTROL.exe</TargetExe>
       <OldExeDir>$(PackageRoot)app\.artifacts\old\</OldExeDir>
-      <OldExe>$(OldExeDir)4_SERVER_CONTROL.$([System.DateTime]::Now.ToString('yyyyMMdd-HHmmss')).exe</OldExe>
+      <OldExe>$(OldExeDir)CS2_SERVER_CONTROL.$([System.DateTime]::Now.ToString('yyyyMMdd-HHmmss')).exe</OldExe>
     </PropertyGroup>
     <ItemGroup>
       <OldExeFile Include="$(OldExeDir)*.exe" />
@@ -74,29 +79,28 @@
     <MakeDir Directories="$(OldExeDir)" />
     <Move SourceFiles="$(TargetExe)" DestinationFiles="$(OldExe)" Condition="Exists('$(TargetExe)')" />
     <Copy SourceFiles="$(PublishDir)$(AssemblyName).exe" DestinationFiles="$(TargetExe)" />
-    <Message Importance="high" Text="Done: $(PackageRoot)4_SERVER_CONTROL.exe" />
+    <Message Importance="high" Text="Done: $(TargetExe)" />
   </Target>
 
-  <!-- -p:PackRelease=true also packs release\CS16-FunServer.zip: everything a
-       LAN PC needs (the exe, README.txt, server-files, tools\maps.csv and the
-       custom-maps hint), without the source code and docs. -->
-  <Target Name="PackRelease" AfterTargets="CopyExeToPackageRoot" Condition="'$(PackRelease)' == 'true'">
+  <!-- -p:BuildReleaseZip=true also packs release\CS2-FunServer.zip (not PackRelease:
+       the .NET SDK uses that name itself and turns it on by default): everything a
+       LAN PC needs (the exe, README.txt, server-files and the built plugins),
+       without the source code and docs. -->
+  <Target Name="PackReleaseZip" AfterTargets="CopyExeToPackageRoot" Condition="'$(BuildReleaseZip)' == 'true'">
     <PropertyGroup>
       <ReleaseStagingRoot>$(PackageRoot)app\.artifacts\release\</ReleaseStagingRoot>
-      <ReleaseStagingDir>$(ReleaseStagingRoot)CS16-FunServer\</ReleaseStagingDir>
-      <ReleaseZip>$(PackageRoot)release\CS16-FunServer.zip</ReleaseZip>
+      <ReleaseStagingDir>$(ReleaseStagingRoot)CS2-FunServer\</ReleaseStagingDir>
+      <ReleaseZip>$(PackageRoot)release\CS2-FunServer.zip</ReleaseZip>
     </PropertyGroup>
     <ItemGroup>
-      <ReleaseFile Include="$(PackageRoot)README.txt;$(PackageRoot)4_SERVER_CONTROL.exe" />
+      <ReleaseFile Include="$(PackageRoot)README.txt;$(PackageRoot)CS2_SERVER_CONTROL.exe" />
       <ReleaseServerFile Include="$(PackageRoot)server-files\**\*" />
-      <ReleaseToolFile Include="$(PackageRoot)tools\maps.csv" />
-      <ReleaseMapsHint Include="$(PackageRoot)custom-maps\PUT_MAPS_HERE.txt" />
+      <ReleasePluginFile Include="$(PackageRoot)plugins\**\*.dll" />
     </ItemGroup>
     <RemoveDir Directories="$(ReleaseStagingRoot)" />
     <Copy SourceFiles="@(ReleaseFile)" DestinationFolder="$(ReleaseStagingDir)" />
     <Copy SourceFiles="@(ReleaseServerFile)" DestinationFolder="$(ReleaseStagingDir)server-files\%(RecursiveDir)" />
-    <Copy SourceFiles="@(ReleaseToolFile)" DestinationFolder="$(ReleaseStagingDir)tools" />
-    <Copy SourceFiles="@(ReleaseMapsHint)" DestinationFolder="$(ReleaseStagingDir)custom-maps" />
+    <Copy SourceFiles="@(ReleasePluginFile)" DestinationFolder="$(ReleaseStagingDir)plugins\%(RecursiveDir)" />
     <MakeDir Directories="$(PackageRoot)release" />
     <ZipDirectory SourceDirectory="$(ReleaseStagingRoot)" DestinationFile="$(ReleaseZip)" Overwrite="true" />
     <Message Importance="high" Text="Done: $(ReleaseZip)" />

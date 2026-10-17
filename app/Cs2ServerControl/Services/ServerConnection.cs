@@ -233,7 +233,7 @@ public sealed partial class ServerConnection : ObservableObject, IDisposable {
             Rcon.Password = Settings.RconPassword;
             Rcon.Reset();
             ActiveModeId = modeId;
-            AddConsoleLine(new ConsoleLine($"Starting hlds.exe ({modeId}, {startMap}) on {GameAddress}", ConsoleLineKind.Normal));
+            AddConsoleLine(new ConsoleLine($"Starting cs2.exe ({modeId}, {startMap}) on {GameAddress}", ConsoleLineKind.Normal));
         } catch (Exception exception) when (exception is InvalidOperationException or System.ComponentModel.Win32Exception or System.IO.IOException) {
             AddConsoleLine(new ConsoleLine(exception.Message, ConsoleLineKind.Normal));
         } finally {

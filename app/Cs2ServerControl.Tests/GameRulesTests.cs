@@ -15,7 +15,7 @@ public class GameRulesTests : IDisposable {
         _paths = new PackagePaths(_rootDir);
         Directory.CreateDirectory(Path.GetDirectoryName(_paths.ModeConfigFile("base"))!);
         Directory.CreateDirectory(_paths.ToolsDir);
-        File.WriteAllLines(_paths.ModeConfigFile("base"), ["mp_roundtime 3", "mp_buytime 0.5", "mp_friendlyfire 0"]);
+        File.WriteAllLines(_paths.ModeConfigFile("base"), ["mp_roundtime 3", "mp_buytime 20", "mp_friendlyfire 0"]);
         File.WriteAllLines(_paths.ModeConfigFile("classic"), ["// classic", "mp_roundtime 2.5"]);
     }
 
@@ -30,7 +30,7 @@ public class GameRulesTests : IDisposable {
     [Theory]
     [InlineData("mp_roundtime", "2,5", "2.5")]
     [InlineData("mp_roundtime", " 4 ", "4")]
-    [InlineData("mp_buytime", "-1", "-1")]
+    [InlineData("mp_buytime", "45", "45")]
     [InlineData("mp_startmoney", "16000", "16000")]
     [InlineData("mp_timelimit", "", "")]
     public void AcceptsValidValues(string cvar, string text, string expected) {
@@ -54,7 +54,7 @@ public class GameRulesTests : IDisposable {
         IReadOnlyDictionary<string, string> defaults = GameRules.ReadModeDefaults(_paths, "classic");
 
         Assert.Equal("2.5", defaults["mp_roundtime"]);
-        Assert.Equal("0.5", defaults["mp_buytime"]);
+        Assert.Equal("20", defaults["mp_buytime"]);
         Assert.False(defaults.ContainsKey("mp_c4timer"));
     }
 
@@ -65,14 +65,14 @@ public class GameRulesTests : IDisposable {
         var rules = new GameRulesViewModel(connection);
         Assert.Equal("Mode default: 2.5", rules.Rows.Single(row => row.Rule.Cvar == "mp_roundtime").Placeholder);
 
-        rules.Rows.Single(row => row.Rule.Cvar == "mp_buytime").Text = "1,5";
+        rules.Rows.Single(row => row.Rule.Cvar == "mp_buytime").Text = "45";
         rules.Rows.Single(row => row.Rule.Cvar == "mp_friendlyfire").SelectedChoice = rules.Rows.Single(row => row.Rule.Cvar == "mp_friendlyfire").Choices[1];
         Assert.True(rules.IsChanged);
 
         Assert.Null(rules.ApplyAsync().GetAwaiter().GetResult());
         Assert.False(rules.IsChanged);
         var written = new LocalSettings(_paths.LocalModeConfigFile("classic"));
-        Assert.Equal("1.5", written.Get("mp_buytime"));
+        Assert.Equal("45", written.Get("mp_buytime"));
         Assert.Equal("1", written.Get("mp_friendlyfire"));
         Assert.False(File.Exists(_paths.LocalModeConfigFile("gungame")));
 

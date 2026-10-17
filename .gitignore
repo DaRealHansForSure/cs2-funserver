@@ -18,3 +18,4 @@ plugins/**/obj/
 CS2_SERVER_CONTROL.exe
 release/
 tools/previews/
+/plugins/

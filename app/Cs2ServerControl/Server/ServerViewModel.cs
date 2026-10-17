@@ -152,7 +152,7 @@ public sealed partial class ServerViewModel : ObservableObject, IScreen {
     public bool IsRunning => _connection.IsRunning;
     public string MapsTitle => $"Maps for {PickedMode.Title}";
     public string MapsInfo => $"Now: {_connection.CurrentMap ?? "-"} · Next: {_connection.NextMap ?? "-"}";
-    public string ConsoleInfo => $"hlds.exe · {_connection.GameAddress}";
+    public string ConsoleInfo => $"cs2.exe · {_connection.GameAddress}";
 
     /// <summary>
     /// Settings can be saved any time; mode and map only differ from a

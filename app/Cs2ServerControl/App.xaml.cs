@@ -51,7 +51,7 @@ public partial class App : Application {
             // start would silently bring nothing forward.
             string logFile = WriteErrorLog(exception);
             MessageBox.Show($"The window could not start: {exception.GetBaseException().Message}\n\nDetails: {logFile}",
-                "CS 1.6 Server Control", MessageBoxButton.OK, MessageBoxImage.Error);
+                "CS2 Server Control", MessageBoxButton.OK, MessageBoxImage.Error);
             Shutdown(1);
         }
     }

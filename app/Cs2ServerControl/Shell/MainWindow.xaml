@@ -9,7 +9,7 @@
         xmlns:maps="clr-namespace:Cs2ServerControl.Maps"
         xmlns:options="clr-namespace:Cs2ServerControl.Options"
         xmlns:install="clr-namespace:Cs2ServerControl.Install"
-        Title="CS 1.6 Server Control"
+        Title="CS2 Server Control"
         Icon="pack://application:,,,/Cs2ServerControl;component/app.ico"
         MinWidth="1100" MinHeight="700" Width="1440" Height="900"
         Background="{StaticResource WindowBackground}"
@@ -190,7 +190,7 @@
                         <Path Width="20" Height="20" Stroke="{StaticResource Accent}" StrokeThickness="2"
                               Data="M 10 4 A 6 6 0 1 0 10.001 4 Z M 10 0 L 10 5 M 10 15 L 10 20 M 0 10 L 5 10 M 15 10 L 20 10" />
                     </Viewbox>
-                    <TextBlock Text="CS 1.6 Server Control" Margin="10,0,0,0" FontSize="{StaticResource FontSizeSmall}"
+                    <TextBlock Text="CS2 Server Control" Margin="10,0,0,0" FontSize="{StaticResource FontSizeSmall}"
                                Foreground="{StaticResource TextSecondary}" VerticalAlignment="Center" />
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">

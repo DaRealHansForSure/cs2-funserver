@@ -21,7 +21,8 @@ public static class GameRules {
         new("mp_timelimit", "Map time", GameRuleKind.Number, 0, 180, "minutes per map, 0 = no limit"),
         new("mp_roundtime", "Round time", GameRuleKind.Decimal, 1, 9, "minutes, 1 to 9"),
         new("mp_freezetime", "Freeze time", GameRuleKind.Number, 0, 60, "seconds at round start"),
-        new("mp_buytime", "Buy time", GameRuleKind.Decimal, -1, 10, "minutes, -1 = the whole round"),
+        // CS2 counts the buy time in seconds (CS 1.6 in minutes).
+        new("mp_buytime", "Buy time", GameRuleKind.Number, 0, 600, "seconds after the round starts"),
         new("mp_startmoney", "Start money", GameRuleKind.Number, 0, 16000, "dollars, up to 16000"),
         new("mp_maxrounds", "Max rounds", GameRuleKind.Number, 0, 100, "map change after this many rounds, 0 = off"),
         new("mp_c4timer", "C4 timer", GameRuleKind.Number, 10, 90, "seconds until the bomb explodes"),

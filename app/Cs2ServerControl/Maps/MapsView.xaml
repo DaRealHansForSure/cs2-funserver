@@ -46,7 +46,7 @@
                                      Width="120" Margin="0,0,4,0" IsChecked="{Binding IsInstalledTab, Mode=TwoWay}" />
                         <RadioButton Content="Market" Style="{StaticResource SegmentButton}" GroupName="MapsTab" Height="{StaticResource SmallButtonHeight}"
                                      Width="120" IsChecked="{Binding IsMarketTab, Mode=TwoWay}"
-                                     ToolTip="Counter-Strike 1.6 maps from GameBanana, installed with one click" />
+                                     ToolTip="Counter-Strike 2 maps (Workshop support comes later)" />
                     </StackPanel>
                 </Border>
                 <TextBlock Text="{Binding Summary}" FontSize="{StaticResource FontSizeToolbar}" Foreground="{StaticResource TextTertiary}"
@@ -175,7 +175,7 @@
                 </Grid>
             </Border>
 
-            <!-- Market: GameBanana's CS 1.6 maps -->
+            <!-- Market: still the CS 1.6 GameBanana market; becomes the Steam Workshop. -->
             <Border Grid.Column="0" Style="{StaticResource Card}" DataContext="{Binding Market}"
                     Visibility="{Binding DataContext.IsMarketTab, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource VisibleWhenTrue}}">
                 <Grid>

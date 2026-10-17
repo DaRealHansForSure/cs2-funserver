@@ -100,13 +100,14 @@ public sealed class PackageInstaller {
         await _funFiles.InstallAsync(cancellation);
     }
 
-    private async Task InstallMapPartsAsync(CancellationToken cancellation) {
-        await _maps.InstallMapPackAsync(cancellation);
-        cancellation.ThrowIfCancellationRequested();
-        await _maps.InstallMapPreviewsAsync(cancellation);
-        cancellation.ThrowIfCancellationRequested();
-        await _maps.InstallOwnMapsAsync(cancellation);
-        cancellation.ThrowIfCancellationRequested();
-        await Task.Run(_maps.UpdateMapCycles, cancellation);
+    /// <summary>
+    /// CS2 brings Valve's maps with the server, and the map lists per mode
+    /// ship as files in server-files (cfg\fun\mapcycle_*.txt), so there is
+    /// nothing to download yet. Workshop maps follow with the Maps screen.
+    /// </summary>
+    private Task InstallMapPartsAsync(CancellationToken cancellation) {
+        _log.Step("Maps");
+        _log.Note("Valve's maps come with the server; the map lists are in cfg\\fun.");
+        return Task.CompletedTask;
     }
 }
