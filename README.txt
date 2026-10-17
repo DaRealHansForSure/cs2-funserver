@@ -6,9 +6,9 @@ program: CS2_SERVER_CONTROL.exe. The sister project of the CS 1.6 LAN Fun
 Server, with the same window: live 3D map, server control, bots, maps,
 stats and options.
 
-STATUS: early version. Install, start, stop, modes, bots, the live 3D map
-and the fun plugin run on a real CS2 server; Zombie and Deathrun rules and
-Workshop maps follow.
+STATUS: early version. Install, start, stop, all five modes, bots, the live
+3D map, the fun plugin and Workshop maps run on a real CS2 server; the
+in-game feel is still being tested.
 
 
 WHAT EVERY PC NEEDS
@@ -50,10 +50,22 @@ MODES
                 turn. A zombie hit infects, only the last human really dies.
                 Zombies glow red, humans blue, through walls.
   Deathrun      One trapper against everybody, knives only. Needs deathrun
-                maps from the Steam Workshop (coming with Workshop support).
+                maps from the Steam Workshop: add them on the Maps screen,
+                then pick one with the Deathrun mode on the Server screen.
 
 To change the mode during the party, type !mode in chat: everybody votes
 for 20 seconds by typing the number of a mode.
+
+
+WORKSHOP MAPS
+-------------
+
+Maps screen, Workshop tab: "Browse the Workshop" opens Steam's Workshop in
+the browser. Copy the address of a map page, paste it into the box and
+press Add. The map then shows on the Server screen in every mode. The
+server downloads it the first time it starts it (a few seconds to a
+minute), the players' CS2 downloads it by itself when they join.
+Workshop maps are played by pick; the rotation stays on Valve's maps.
 
 
 FOR THE PLAYERS (no binds needed)
