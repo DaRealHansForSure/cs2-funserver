@@ -46,8 +46,11 @@ MODES
                 a fun round every few rounds.
   Arms Race     Valve's GunGame: a new weapon with every kill.
   Deathmatch    Instant respawn, with the hook.
-  Zombie        Casual rules for now; the infection follows with a plugin.
-  Deathrun      Casual rules on deathrun maps; the trapper logic follows.
+  Zombie        Everybody starts human; after 10 seconds the first zombies
+                turn. A zombie hit infects, only the last human really dies.
+                Zombies glow red, humans blue, through walls.
+  Deathrun      One trapper against everybody, knives only. Needs deathrun
+                maps from the Steam Workshop (coming with Workshop support).
 
 To change the mode during the party, type !mode in chat: everybody votes
 for 20 seconds by typing the number of a mode.

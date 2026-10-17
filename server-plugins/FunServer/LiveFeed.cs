@@ -80,7 +80,7 @@ public sealed partial class FunServerPlugin {
         // The separators must never show up inside a field.
         string name = player.PlayerName.Replace('|', '/').Replace('\n', '/').Replace('\r', '/');
         string line = string.Create(CultureInfo.InvariantCulture,
-            $"\nP|{player.UserId ?? 0}|{name}|{TeamName(player.TeamNum)}|{(isAlive ? 1 : 0)}|{(player.IsBot ? 1 : 0)}|{health}|{Round(origin?.X)}|{Round(origin?.Y)}|{Round(origin?.Z)}|{Round(yaw)}|{stats?.Kills ?? 0}|{stats?.Deaths ?? 0}|{weapon}|{HookField(player)}|{GlowField(isAlive ? pawn : null)}");
+            $"\nP|{player.UserId ?? 0}|{name}|{TeamName(player.TeamNum)}|{(isAlive ? 1 : 0)}|{(player.IsBot ? 1 : 0)}|{health}|{Round(origin?.X)}|{Round(origin?.Y)}|{Round(origin?.Z)}|{Round(yaw)}|{stats?.Kills ?? 0}|{stats?.Deaths ?? 0}|{weapon}|{HookField(player)}|{GlowField(player, isAlive ? pawn : null)}");
         packet.Append(line);
     }
 
@@ -94,12 +94,17 @@ public sealed partial class FunServerPlugin {
     }
 
     /// <summary>
-    /// The tint fun_glow set, read back from the pawn, so the Live Map shows
-    /// what the players really see. White is the untinted default: -1 -1 -1.
+    /// The outline glow of the player, else a color tint read back from the
+    /// pawn (Juggernaut, ghosts), so the Live Map shows what the players see.
+    /// White is the untinted default: -1 -1 -1.
     /// </summary>
-    private static string GlowField(CCSPlayerPawn? pawn) {
+    private string GlowField(CCSPlayerController player, CCSPlayerPawn? pawn) {
         if (pawn == null) {
             return "-1|-1|-1";
+        }
+        Color? glow = GlowColorOf(player);
+        if (glow != null) {
+            return string.Create(CultureInfo.InvariantCulture, $"{glow.Value.R}|{glow.Value.G}|{glow.Value.B}");
         }
         Color render = pawn.Render;
         bool isUntinted = render.R == 255 && render.G == 255 && render.B == 255;

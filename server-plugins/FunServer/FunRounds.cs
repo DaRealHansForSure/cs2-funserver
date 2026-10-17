@@ -45,6 +45,8 @@ public sealed partial class FunServerPlugin {
     private FunRound? _currentRound;
     // True from the end of freeze time on: before that a restart does not count the round as played.
     private bool _isFunRoundPlaying;
+    // The Juggernaut of the running round, whose red glow goes at the round end; -1 for none.
+    private int _juggernautSlot = -1;
 
     private void LoadFunRounds() {
         RegisterListener<Listeners.OnMapStart>(_ => {
@@ -164,7 +166,8 @@ public sealed partial class FunServerPlugin {
             CCSPlayerPawn pawn = juggernaut.PlayerPawn.Value!;
             SetHealth(pawn, JuggernautHealth);
             juggernaut.GiveNamedItem("weapon_m249");
-            SetRender(pawn, Color.FromArgb(255, 255, 60, 60));
+            SetGlow(juggernaut, Color.FromArgb(255, 255, 60, 60));
+            _juggernautSlot = juggernaut.Slot;
             ChatToAll($"{ChatColors.Red}{juggernaut.PlayerName}{ChatColors.Default} is the Juggernaut. Get them!");
         }
     }
@@ -266,6 +269,13 @@ public sealed partial class FunServerPlugin {
         }
         _currentRound = null;
         RunModeConfigs();
+        if (_juggernautSlot >= 0) {
+            CCSPlayerController? juggernaut = Utilities.GetPlayerFromSlot(_juggernautSlot);
+            if (juggernaut != null && juggernaut.IsValid) {
+                RemoveGlow(juggernaut);
+            }
+            _juggernautSlot = -1;
+        }
         foreach (CCSPlayerController player in Utilities.GetPlayers().Where(player => player.IsValid)) {
             CCSPlayerPawn? pawn = player.PlayerPawn.Value;
             if (pawn == null || !pawn.IsValid) {

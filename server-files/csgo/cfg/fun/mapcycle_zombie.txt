@@ -3,4 +3,4 @@ de_inferno
 de_nuke
 de_ancient
 de_vertigo
-cs_office
+de_mirage

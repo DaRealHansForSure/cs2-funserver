@@ -51,15 +51,23 @@ public sealed partial class FunServerPlugin {
         }
     }
 
-    /// <summary>A colored render tint for now; a real outline glow follows with the fun plugins.</summary>
+    /// <summary>The outline glow (Glow.cs), seen through walls; it lasts until "off" or death.</summary>
     [ConsoleCommand("fun_glow", "fun_glow <target> <red|green|blue|yellow|pink|white|off>")]
     [CommandHelper(minArgs: 2, usage: "<target> <color|off>", whoCanExecute: CommandUsage.SERVER_ONLY)]
     public void OnGlow(CCSPlayerController? caller, CommandInfo command) {
         string colorName = command.GetArg(2);
+        bool isOff = colorName.Equals("off", StringComparison.OrdinalIgnoreCase);
         Color color = GlowColors.TryGetValue(colorName, out Color picked) ? picked : Color.White;
         foreach (CCSPlayerPawn pawn in AlivePawns(command.GetArg(1))) {
-            pawn.Render = color;
-            Utilities.SetStateChanged(pawn, "CBaseModelEntity", "m_clrRender");
+            CCSPlayerController? player = pawn.OriginalController.Value;
+            if (player == null || !player.IsValid) {
+                continue;
+            }
+            if (isOff) {
+                RemoveGlow(player);
+            } else {
+                SetGlow(player, color);
+            }
         }
     }
 

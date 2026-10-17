@@ -71,7 +71,7 @@ public sealed partial class FunServerPlugin {
 
         CCSPlayerPawn pawn = killer.PlayerPawn.Value!;
         SetHealth(pawn, Math.Min(StreakMaxHealth, pawn.Health + StreakHealthBonus));
-        GlowFor(pawn, StreakGold, StreakGlowSeconds);
+        GlowFor(killer, StreakGold, StreakGlowSeconds);
         if (streak % StreakBigStep == 0) {
             Push(pawn, new Vector(pawn.AbsVelocity.X, pawn.AbsVelocity.Y, StreakRocketSpeed));
             ChatToAll($"{ChatColors.Gold}{killer.PlayerName}{ChatColors.Default} is unstoppable: {streak} kills in a row!");
@@ -81,13 +81,19 @@ public sealed partial class FunServerPlugin {
         return HookResult.Continue;
     }
 
-    /// <summary>A short tint that puts the old look back, an admin glow or a juggernaut stays.</summary>
-    private void GlowFor(CCSPlayerPawn pawn, Color color, float seconds) {
-        Color before = pawn.Render;
-        SetRender(pawn, Color.FromArgb(before.A, color.R, color.G, color.B));
+    /// <summary>A short glow that puts the old one back: an admin glow or the zombie colors stay.</summary>
+    private void GlowFor(CCSPlayerController player, Color color, float seconds) {
+        Color? before = GlowColorOf(player);
+        SetGlow(player, color);
         AddTimer(seconds, () => {
-            if (pawn.IsValid) {
-                SetRender(pawn, before);
+            // Only when nothing else changed the glow in between, and the player still lives.
+            if (!player.IsValid || GlowColorOf(player) != color) {
+                return;
+            }
+            if (before == null) {
+                RemoveGlow(player);
+            } else {
+                SetGlow(player, before.Value);
             }
         }, TimerFlags.STOP_ON_MAPCHANGE);
     }
