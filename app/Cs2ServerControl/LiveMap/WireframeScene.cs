@@ -6,14 +6,14 @@ using MediaColor = System.Windows.Media.Color;
 namespace Cs2ServerControl.LiveMap;
 
 /// <summary>
-/// Turns a BSP wireframe into Helix line geometry: one geometry for all map
+/// Turns a map wireframe into Helix line geometry: one geometry for all map
 /// edges, colored by height so the levels read apart in a pure wireframe,
 /// and one for the floor grid.
 /// </summary>
 public static class WireframeScene {
     public const float GridSpacing = 256f;
 
-    public static LineGeometry3D BuildMapLines(BspWireframe wireframe, MediaColor lowColor, MediaColor highColor) {
+    public static LineGeometry3D BuildMapLines(MapWireframe wireframe, MediaColor lowColor, MediaColor highColor) {
         var positions = new Vector3Collection(wireframe.Segments.Count * 2);
         var indices = new IntCollection(wireframe.Segments.Count * 2);
         var colors = new Color4Collection(wireframe.Segments.Count * 2);
@@ -40,7 +40,7 @@ public static class WireframeScene {
     }
 
     /// <summary>A 256 unit grid over the map bounds on the lowest floor level.</summary>
-    public static LineGeometry3D BuildFloorGrid(BspWireframe wireframe) {
+    public static LineGeometry3D BuildFloorGrid(MapWireframe wireframe) {
         float minX = MathF.Floor(wireframe.BoundsMin.X / GridSpacing) * GridSpacing;
         float maxX = MathF.Ceiling(wireframe.BoundsMax.X / GridSpacing) * GridSpacing;
         float minY = MathF.Floor(wireframe.BoundsMin.Y / GridSpacing) * GridSpacing;

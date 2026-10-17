@@ -46,6 +46,10 @@
     <PackageReference Include="HelixToolkit.SharpDX.Core.Wpf" Version="2.27.3" />
     <!-- Reads the zip archives of Metamod and CounterStrikeSharp, and RAR or 7z should a mirror ship one. -->
     <PackageReference Include="SharpCompress" Version="0.50.5" />
+    <!-- Reads CS2 map packages (.vpk) and their compiled resources: world collision for the Live Map, weapon icons. MIT. -->
+    <PackageReference Include="ValveResourceFormat" Version="20.1.7467" />
+    <!-- Turns the SVG kill feed icons from the game files into WPF drawings. BSD-3-Clause. -->
+    <PackageReference Include="SharpVectors.Wpf" Version="1.8.5" />
   </ItemGroup>
 
   <!-- A publish never ships an exe whose tests fail. The tests build into

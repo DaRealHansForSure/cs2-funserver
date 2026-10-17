@@ -124,9 +124,9 @@ public sealed partial class LiveMapViewModel : ObservableObject, IScreen {
     private static readonly TimeSpan ShotLifetime = TimeSpan.FromSeconds(0.8);
     private const int MaxShotsShown = 400;
 
-    // GoldSrc's player origin is the hull center: feet 36 units below, eyes 28 above.
-    public const float FeetOffset = -36f;
-    public const float HeadOffset = 28f;
+    // CS2 sends the pawn origin, which is at the feet; standing eyes are 64 units up.
+    public const float FeetOffset = 0f;
+    public const float HeadOffset = 64f;
 
     private readonly ServerConnection _connection;
     private readonly IDialogService _dialogs;
@@ -167,7 +167,7 @@ public sealed partial class LiveMapViewModel : ObservableObject, IScreen {
     private bool _isFollowing;
 
     [ObservableProperty]
-    private BspWireframe? _wireframe;
+    private MapWireframe? _wireframe;
 
     [ObservableProperty]
     private string? _viewportMessage = "Waiting for the server";
@@ -740,18 +740,17 @@ public sealed partial class LiveMapViewModel : ObservableObject, IScreen {
         int version = ++_mapLoadVersion;
         ViewportMessage = "Loading map...";
         try {
-            BspWireframe wireframe = await BspWireframeLoader.LoadAsync(mapFile);
+            MapWireframe wireframe = await Cs2MapLoader.LoadAsync(mapFile);
             if (version != _mapLoadVersion) {
                 return;
             }
             Camera.Fit(wireframe.BoundsMin, wireframe.BoundsMax, IsTopView);
             Wireframe = wireframe;
             ViewportMessage = null;
-        } catch (Exception exception) when (exception is IOException or BspFormatException or UnauthorizedAccessException) {
+        } catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException) {
             if (version == _mapLoadVersion) {
                 Wireframe = null;
-                // The reader only knows GoldSrc maps so far; CS2's .vpk maps follow.
-                ViewportMessage = $"No 3D view of {mapName} yet, the players still show";
+                ViewportMessage = $"Could not read {mapName}: {exception.Message}";
             }
         }
     }

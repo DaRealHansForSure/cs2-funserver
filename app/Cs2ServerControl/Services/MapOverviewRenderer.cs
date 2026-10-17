@@ -10,7 +10,7 @@ namespace Cs2ServerControl.Services;
 /// unlike the radar images, which only the stock maps have.
 /// </summary>
 public static class MapOverviewRenderer {
-    public static BitmapSource Render(BspWireframe wireframe, int size, Color background, Color low, Color high) {
+    public static BitmapSource Render(MapWireframe wireframe, int size, Color background, Color low, Color high) {
         float width = wireframe.BoundsMax.X - wireframe.BoundsMin.X;
         float depth = wireframe.BoundsMax.Y - wireframe.BoundsMin.Y;
         double margin = size * 0.04;

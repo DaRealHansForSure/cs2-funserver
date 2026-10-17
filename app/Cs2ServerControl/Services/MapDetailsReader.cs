@@ -15,11 +15,11 @@ public static partial class MapDetailsReader {
     private const int MaxLogFiles = 500;
     private const double MetersPerUnit = 0.0254;
 
-    public static Task<IReadOnlyList<MapStat>> ReadAsync(PackagePaths paths, string mapName, BspWireframe? wireframe) {
+    public static Task<IReadOnlyList<MapStat>> ReadAsync(PackagePaths paths, string mapName, MapWireframe? wireframe) {
         return Task.Run(() => Read(paths, mapName, wireframe));
     }
 
-    private static IReadOnlyList<MapStat> Read(PackagePaths paths, string mapName, BspWireframe? wireframe) {
+    private static IReadOnlyList<MapStat> Read(PackagePaths paths, string mapName, MapWireframe? wireframe) {
         var stats = new List<MapStat>();
         string mapFile = paths.MapFile(mapName);
 

@@ -7,7 +7,7 @@ public readonly record struct CameraPose(Vector3 Position, Vector3 LookDirection
 /// <summary>
 /// An orbit camera around a target point: yaw, pitch and a zoom factor of
 /// the distance that fits the whole map. Toolbar actions animate over 200 ms,
-/// mouse and keyboard input applies at once. Z is up, like in GoldSrc.
+/// mouse and keyboard input applies at once. Z is up, like in the Source engine.
 /// </summary>
 public sealed class CameraRig {
     public const float DefaultYaw = 35f;

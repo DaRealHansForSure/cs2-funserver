@@ -62,18 +62,17 @@ public sealed partial class MapDetailsViewModel : ModalViewModel {
     }
 
     private async Task LoadAsync() {
-        BspWireframe? wireframe = null;
+        MapWireframe? wireframe = null;
         string mapFile = _connection.Paths.MapFile(MapName);
         try {
             if (File.Exists(mapFile)) {
-                wireframe = await BspWireframeLoader.LoadAsync(mapFile);
+                wireframe = await Cs2MapLoader.LoadAsync(mapFile);
                 Overview = RenderOverview(wireframe);
             } else {
                 OverviewMessage = $"{MapName} is not installed";
             }
-        } catch (Exception exception) when (exception is IOException or BspFormatException or UnauthorizedAccessException) {
-            // The reader only knows GoldSrc maps so far; CS2's .vpk maps follow.
-            OverviewMessage = "No overview of CS2 maps yet";
+        } catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException) {
+            OverviewMessage = "The map's world collision could not be read";
         }
 
         IReadOnlyList<MapStat> stats = await MapDetailsReader.ReadAsync(_connection.Paths, MapName, wireframe);
@@ -83,7 +82,7 @@ public sealed partial class MapDetailsViewModel : ModalViewModel {
         IsLoading = false;
     }
 
-    private static ImageSource RenderOverview(BspWireframe wireframe) {
+    private static ImageSource RenderOverview(MapWireframe wireframe) {
         // Token colors, read here because the renderer is a plain service.
         Color Read(string key) => (Color)Application.Current.FindResource(key);
         return MapOverviewRenderer.Render(wireframe, OverviewSize, Read("ViewportBackgroundColor"), Read("WireLowColor"), Read("WireHighColor"));

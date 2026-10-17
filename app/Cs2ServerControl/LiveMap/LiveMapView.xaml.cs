@@ -103,7 +103,7 @@ public partial class LiveMapView : UserControl {
 
     private SceneColors Colors => _colors ??= SceneColors.FromResources(this);
 
-    private void ShowWireframe(BspWireframe? wireframe) {
+    private void ShowWireframe(MapWireframe? wireframe) {
         if (wireframe == null) {
             MapLines.Geometry = null;
             GridLines.Geometry = null;
