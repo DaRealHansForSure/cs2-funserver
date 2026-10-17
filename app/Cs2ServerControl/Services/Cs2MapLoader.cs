@@ -28,39 +28,64 @@ public static class Cs2MapLoader {
     private static readonly ConcurrentDictionary<string, (DateTime Timestamp, MapWireframe Wireframe)> Cache = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Loads on a background thread, cached per file and timestamp.</summary>
-    public static Task<MapWireframe> LoadAsync(string mapFile) {
-        return Task.Run(() => Load(mapFile));
+    public static Task<MapWireframe> LoadAsync(string packageFile, string mapName) {
+        return Task.Run(() => Load(packageFile, mapName));
     }
 
-    /// <summary>Throws InvalidDataException when the package holds no world collision.</summary>
-    public static MapWireframe Load(string mapFile) {
-        DateTime timestamp = File.GetLastWriteTimeUtc(mapFile);
-        if (Cache.TryGetValue(mapFile, out var cached) && cached.Timestamp == timestamp) {
+    /// <summary>
+    /// The package is Valve's map file or a downloaded Workshop item, which
+    /// carries the map package inside. Throws InvalidDataException when there
+    /// is no world collision.
+    /// </summary>
+    public static MapWireframe Load(string packageFile, string mapName) {
+        string cacheKey = packageFile + "|" + mapName;
+        DateTime timestamp = File.GetLastWriteTimeUtc(packageFile);
+        if (Cache.TryGetValue(cacheKey, out var cached) && cached.Timestamp == timestamp) {
             return cached.Wireframe;
         }
 
-        string mapName = Path.GetFileNameWithoutExtension(mapFile);
-        PhysAggregateData physics = ReadWorldPhysics(mapFile, mapName);
+        PhysAggregateData physics = ReadWorldPhysics(packageFile, mapName);
         MapWireframe wireframe = BuildWireframe(mapName, physics);
-        Cache[mapFile] = (timestamp, wireframe);
+        Cache[cacheKey] = (timestamp, wireframe);
         return wireframe;
     }
 
-    private static PhysAggregateData ReadWorldPhysics(string mapFile, string mapName) {
-        using var package = new Package();
-        package.Read(mapFile);
-        PackageEntry? entry = package.FindEntry($"maps/{mapName}/world_physics.vmdl_c");
-        if (entry == null) {
-            throw new InvalidDataException($"{mapName}.vpk has no world collision.");
+    private static PhysAggregateData ReadWorldPhysics(string packageFile, string mapName) {
+        using var outer = new Package();
+        outer.Read(packageFile);
+        string physicsPath = $"maps/{mapName}/world_physics.vmdl_c";
+        byte[] bytes;
+        PackageEntry? entry = outer.FindEntry(physicsPath);
+        if (entry != null) {
+            outer.ReadEntry(entry, out bytes);
+        } else {
+            bytes = ReadFromInnerMapPackage(outer, mapName, physicsPath);
         }
-
-        package.ReadEntry(entry, out byte[] bytes);
         using var resource = new Resource();
         resource.Read(new MemoryStream(bytes));
         if (resource.DataBlock is not Model model || model.GetEmbeddedPhys() is not PhysAggregateData physics) {
             throw new InvalidDataException($"The world collision of {mapName} could not be read.");
         }
         return physics;
+    }
+
+    /// <summary>A Workshop item packs maps\&lt;map&gt;.vpk; that inner package holds the world collision.</summary>
+    private static byte[] ReadFromInnerMapPackage(Package outer, string mapName, string physicsPath) {
+        PackageEntry? mapEntry = outer.FindEntry($"maps/{mapName}.vpk");
+        if (mapEntry == null) {
+            throw new InvalidDataException($"{mapName} has no world collision.");
+        }
+        outer.ReadEntry(mapEntry, out byte[] mapPackage);
+
+        using var inner = new Package();
+        inner.SetFileName(mapName + ".vpk");
+        inner.Read(new MemoryStream(mapPackage));
+        PackageEntry? entry = inner.FindEntry(physicsPath);
+        if (entry == null) {
+            throw new InvalidDataException($"{mapName} has no world collision.");
+        }
+        inner.ReadEntry(entry, out byte[] bytes);
+        return bytes;
     }
 
     private static MapWireframe BuildWireframe(string mapName, PhysAggregateData physics) {

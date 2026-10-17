@@ -63,10 +63,10 @@ public sealed partial class MapDetailsViewModel : ModalViewModel {
 
     private async Task LoadAsync() {
         MapWireframe? wireframe = null;
-        string mapFile = _connection.Paths.MapFile(MapName);
+        string? packageFile = await Task.Run(() => _connection.Paths.FindMapPackage(MapName));
         try {
-            if (File.Exists(mapFile)) {
-                wireframe = await Cs2MapLoader.LoadAsync(mapFile);
+            if (packageFile != null) {
+                wireframe = await Cs2MapLoader.LoadAsync(packageFile, MapName);
                 Overview = RenderOverview(wireframe);
             } else {
                 OverviewMessage = $"{MapName} is not installed";

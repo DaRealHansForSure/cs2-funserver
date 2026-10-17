@@ -37,6 +37,7 @@ public class Cs2ServerTests {
     [InlineData("de_dust2_vanity", false)]
     [InlineData("lobby_mapveto", false)]
     [InlineData("graphics_settings", false)]
+    [InlineData("workshop_preview_dust2", false)]
     public void OnlyRealMapsCountAsMaps(string package, bool isMap) {
         Assert.Equal(isMap, MapLibrary.IsPlayableMapPackage(package));
     }

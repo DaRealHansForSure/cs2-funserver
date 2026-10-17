@@ -20,11 +20,13 @@ public static class MapDetailsReader {
 
     private static IReadOnlyList<MapStat> Read(PackagePaths paths, string mapName, MapWireframe? wireframe) {
         var stats = new List<MapStat>();
-        string mapFile = paths.MapFile(mapName);
-
         stats.Add(new MapStat("Modes", ModesOf(paths, mapName)));
 
-        if (File.Exists(mapFile)) {
+        string mapFile = paths.MapFile(mapName);
+        WorkshopDownload? workshop = File.Exists(mapFile) ? null : WorkshopLibrary.FindDownload(paths, mapName);
+        if (workshop != null) {
+            stats.Add(new MapStat("Workshop", $"Item {workshop.Id}, {workshop.SizeBytes / 1024.0 / 1024.0:0.0} MB"));
+        } else if (File.Exists(mapFile)) {
             stats.Add(new MapStat("File", $"{new FileInfo(mapFile).Length / 1024.0 / 1024.0:0.0} MB"));
         }
 

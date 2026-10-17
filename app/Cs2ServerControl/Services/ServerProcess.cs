@@ -101,7 +101,7 @@ public sealed class ServerProcess {
         return anyAddress ?? IPAddress.Loopback;
     }
 
-    public void Start(string modeId, string startMap, int maxPlayers, IPAddress lanAddress, string rconPassword) {
+    public void Start(string modeId, string startMap, int maxPlayers, IPAddress lanAddress, string rconPassword, string? workshopId = null) {
         if (!_paths.IsServerInstalled) {
             throw new InvalidOperationException("The server is not installed yet. Run Install or repair on the Install screen first.");
         }
@@ -115,7 +115,7 @@ public sealed class ServerProcess {
         Install.ServerComponentsInstaller.EnsureMetamodSearchPath(new Install.InstallPaths(_paths), log: null);
 
         GameMode mode = GameModes.Find(modeId) ?? GameModes.All[0];
-        string arguments = BuildArguments(mode, startMap, maxPlayers, lanAddress, rconPassword);
+        string arguments = BuildArguments(mode, startMap, maxPlayers, lanAddress, rconPassword, workshopId);
 
         // cs2.exe -console opens a console window that takes the focus, even
         // minimized; the host plays on this PC. The window's console tab
@@ -131,7 +131,9 @@ public sealed class ServerProcess {
     /// while only bots play. fun/local.cfg runs once here; on every map the
     /// mode plugin runs it again after the mode config.
     /// </summary>
-    internal static string BuildArguments(GameMode mode, string startMap, int maxPlayers, IPAddress lanAddress, string rconPassword) {
+    internal static string BuildArguments(GameMode mode, string startMap, int maxPlayers, IPAddress lanAddress, string rconPassword, string? workshopId = null) {
+        // A Workshop map replaces the start map once the server has downloaded it.
+        string workshopMap = workshopId == null ? "" : $" +host_workshop_map {workshopId}";
         return string.Join(' ',
             "-dedicated -console -usercon -condebug",
             $"-port {GamePort}",
@@ -143,7 +145,7 @@ public sealed class ServerProcess {
             $"+game_mode {mode.GameModeNumber}",
             $"+rcon_password {rconPassword}",
             "+exec fun/local.cfg",
-            $"+map {startMap}");
+            $"+map {startMap}{workshopMap}");
     }
 
     /// <summary>

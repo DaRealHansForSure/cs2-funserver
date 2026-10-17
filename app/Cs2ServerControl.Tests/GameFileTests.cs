@@ -14,7 +14,7 @@ public class GameFileTests {
             return;
         }
 
-        MapWireframe wireframe = Cs2MapLoader.Load(file);
+        MapWireframe wireframe = Cs2MapLoader.Load(file, "de_dust2");
 
         Assert.Equal("de_dust2", wireframe.MapName);
         Assert.InRange(wireframe.Segments.Count, 10_000, 400_000);
