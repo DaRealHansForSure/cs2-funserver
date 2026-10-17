@@ -172,16 +172,7 @@ public sealed partial class FunServerPlugin {
     }
 
     private static string? RandomMapOf(string modeId) {
-        string cycleFile = Path.Combine(ConfigDirectory, "fun", $"mapcycle_{modeId}.txt");
-        if (!File.Exists(cycleFile)) {
-            return null;
-        }
-        string mapsDir = Path.Combine(Server.GameDirectory, "csgo", "maps");
-        List<string> maps = File.ReadAllLines(cycleFile)
-            .Select(line => line.Trim())
-            .Where(line => line.Length > 0 && !line.StartsWith("//", StringComparison.Ordinal))
-            .Where(map => File.Exists(Path.Combine(mapsDir, map + ".vpk")))
-            .ToList();
+        List<string> maps = InstalledMapsOf(modeId);
         if (maps.Count == 0) {
             return null;
         }

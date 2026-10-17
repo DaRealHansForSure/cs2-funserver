@@ -34,6 +34,7 @@ public sealed partial class InstallViewModel : ObservableObject, IScreen {
         _connection = connection;
         _dialogs = dialogs;
         _dispatcher = Dispatcher.CurrentDispatcher;
+        Admins = new AdminsViewModel(connection);
         _connection.PropertyChanged += (_, e) => {
             if (e.PropertyName == nameof(ServerConnection.IsRunning)) {
                 OnPropertyChanged(nameof(IsServerRunning));
@@ -42,6 +43,7 @@ public sealed partial class InstallViewModel : ObservableObject, IScreen {
     }
 
     public ObservableCollection<InstallMessage> Log { get; } = [];
+    public AdminsViewModel Admins { get; }
     public bool CanStart => !IsBusy;
     public bool IsServerRunning => _connection.IsRunning;
     public bool IsServerInstalled => _connection.Paths.IsServerInstalled;
@@ -60,6 +62,7 @@ public sealed partial class InstallViewModel : ObservableObject, IScreen {
 
     public void OnShown() {
         OnPropertyChanged(nameof(IsServerInstalled));
+        Admins.Load();
     }
 
     public void OnHidden() {

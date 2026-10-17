@@ -24,17 +24,25 @@ public sealed record LivePlayer(
     string Weapon,
     bool IsHooking,
     Vector3 HookPoint,
-    PlayerGlow? Glow = null);
+    PlayerGlow? Glow = null,
+    ulong SteamId = 0);
 
 /// <summary>The glow shell color of a player, from amx_glow, streaks, Juggernaut or zombies.</summary>
 public readonly record struct PlayerGlow(byte Red, byte Green, byte Blue);
 
+/// <summary>
+/// One snapshot. MapSecondsLeft (-1 without a time limit) and NextMap come
+/// from the CS2 plugin only; CS2 answers no server rules query that could
+/// tell them.
+/// </summary>
 public sealed record LiveSnapshot(
     string MapName,
     string ModeId,
     int RoundSecondsLeft,
     int MaxPlayers,
-    IReadOnlyList<LivePlayer> Players);
+    IReadOnlyList<LivePlayer> Players,
+    int MapSecondsLeft = -1,
+    string NextMap = "");
 
 public sealed record LiveKill(int KillerUserId, int VictimUserId, string Weapon, bool IsHeadshot);
 
@@ -157,7 +165,10 @@ public sealed class LiveFeedParser {
             }
             players.Add(player);
         }
-        return new LiveSnapshot(header[2], header[3], secondsLeft, maxPlayers, players);
+        // Optional: older plugins send six fields.
+        int mapSecondsLeft = header.Length > 6 && TryInt(header[6], out int parsedMapSeconds) ? parsedMapSeconds : -1;
+        string nextMap = header.Length > 7 ? header[7] : "";
+        return new LiveSnapshot(header[2], header[3], secondsLeft, maxPlayers, players, mapSecondsLeft, nextMap);
     }
 
     private static LivePlayer? ParsePlayer(string line) {
@@ -210,7 +221,16 @@ public sealed class LiveFeedParser {
             fields[13],
             fields[14] == "1",
             new Vector3(hookX, hookY, hookZ),
-            ReadGlow(fields));
+            ReadGlow(fields),
+            ReadSteamId(fields));
+    }
+
+    /// <summary>The 64 bit SteamID after the glow, 0 for bots and for older plugin versions.</summary>
+    private static ulong ReadSteamId(string[] fields) {
+        if (fields.Length <= PlayerFieldCountWithGlow) {
+            return 0;
+        }
+        return ulong.TryParse(fields[PlayerFieldCountWithGlow], NumberStyles.Integer, CultureInfo.InvariantCulture, out ulong steamId) ? steamId : 0;
     }
 
     /// <summary>

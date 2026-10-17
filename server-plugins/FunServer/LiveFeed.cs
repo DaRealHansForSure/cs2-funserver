@@ -15,7 +15,9 @@ namespace FunServer;
 /// Streams the game to the Server Control window over UDP on this PC, in the
 /// same text format as the CS 1.6 plugin fun_livemap, so the window's parser
 /// stays the same:
-///   CSLIVE1|S|map|mode|roundSecondsLeft|maxPlayers, then one P line per player
+///   CSLIVE1|S|map|mode|roundSecondsLeft|maxPlayers|mapSecondsLeft|nextMap,
+///     then one P line per player (the last two fields are new in CS2; the P
+///     line ends with the 64 bit SteamID, 0 for bots, for the admin list)
 ///   CSLIVE1|K|killerUserid|victimUserid|weapon|headshot
 ///   CSLIVE1|T, then one line per bullet: shooter|sx|sy|sz|ex|ey|ez|hitPlayer
 /// The feed only goes to 127.0.0.1; the window opens no firewall port for it.
@@ -58,7 +60,7 @@ public sealed partial class FunServerPlugin {
         SendShots();
 
         var packet = new StringBuilder();
-        packet.Append(CultureInfo.InvariantCulture, $"{PacketPrefix}|S|{Server.MapName}|{ReadActiveMode()}|{RoundSecondsLeft()}|{Server.MaxPlayers}");
+        packet.Append(CultureInfo.InvariantCulture, $"{PacketPrefix}|S|{Server.MapName}|{_activeMode}|{RoundSecondsLeft()}|{Server.MaxPlayers}|{MapSecondsLeft()}|{NextMapName()}");
         foreach (CCSPlayerController player in Utilities.GetPlayers()) {
             if (!player.IsValid || player.IsHLTV) {
                 continue;
@@ -80,7 +82,7 @@ public sealed partial class FunServerPlugin {
         // The separators must never show up inside a field.
         string name = player.PlayerName.Replace('|', '/').Replace('\n', '/').Replace('\r', '/');
         string line = string.Create(CultureInfo.InvariantCulture,
-            $"\nP|{player.UserId ?? 0}|{name}|{TeamName(player.TeamNum)}|{(isAlive ? 1 : 0)}|{(player.IsBot ? 1 : 0)}|{health}|{Round(origin?.X)}|{Round(origin?.Y)}|{Round(origin?.Z)}|{Round(yaw)}|{stats?.Kills ?? 0}|{stats?.Deaths ?? 0}|{weapon}|{HookField(player)}|{GlowField(player, isAlive ? pawn : null)}");
+            $"\nP|{player.UserId ?? 0}|{name}|{TeamName(player.TeamNum)}|{(isAlive ? 1 : 0)}|{(player.IsBot ? 1 : 0)}|{health}|{Round(origin?.X)}|{Round(origin?.Y)}|{Round(origin?.Z)}|{Round(yaw)}|{stats?.Kills ?? 0}|{stats?.Deaths ?? 0}|{weapon}|{HookField(player)}|{GlowField(player, isAlive ? pawn : null)}|{(player.IsBot ? 0 : player.SteamID)}");
         packet.Append(line);
     }
 
@@ -156,6 +158,27 @@ public sealed partial class FunServerPlugin {
         float roundSeconds = (ConVar.Find("mp_roundtime")?.GetPrimitiveValue<float>() ?? 0) * 60f;
         int left = (int)MathF.Ceiling(roundSeconds - (Server.CurrentTime - _roundStartedAt));
         return Math.Max(left, 0);
+    }
+
+    /// <summary>
+    /// What is left of mp_timelimit since the match started (after warmup);
+    /// -1 without a time limit or before the match runs. CS2 answers no
+    /// server rules query, so this and the next map go through the feed.
+    /// </summary>
+    private static int MapSecondsLeft() {
+        float limitMinutes = ConVar.Find("mp_timelimit")?.GetPrimitiveValue<float>() ?? 0;
+        CCSGameRules? rules = Utilities.FindAllEntitiesByDesignerName<CCSGameRulesProxy>("cs_gamerules").FirstOrDefault()?.GameRules;
+        if (limitMinutes <= 0 || rules == null || rules.WarmupPeriod) {
+            return -1;
+        }
+        int left = (int)MathF.Ceiling(limitMinutes * 60f - (Server.CurrentTime - rules.GameStartTime));
+        return Math.Max(left, 0);
+    }
+
+    private static string NextMapName() {
+        string next = ConVar.Find("nextlevel")?.StringValue ?? "";
+        // The separators must never show up inside a field.
+        return next.Replace('|', '/').Replace('\n', '/');
     }
 
     private void Send(string text) {

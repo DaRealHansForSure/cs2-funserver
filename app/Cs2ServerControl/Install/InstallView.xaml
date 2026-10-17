@@ -54,11 +54,56 @@
                             Command="{Binding InstallServerCommand}" IsEnabled="{Binding CanStart}" />
                 </StackPanel>
             </Border>
-            <Border Grid.Column="2" Style="{StaticResource Card}">
+            <!-- Admins: who may grab players in game. Saved at once, a running server reloads it. -->
+            <Border Grid.Column="2" Style="{StaticResource Card}" DataContext="{Binding Admins}">
                 <StackPanel>
-                    <TextBlock Text="Maps" Style="{StaticResource CardTitleText}" Margin="0,0,0,8" />
-                    <TextBlock Style="{StaticResource HintText}" TextWrapping="Wrap"
-                               Text="Valve's maps come with the server, the map lists per mode with the package. Maps from the Steam Workshop follow in a later version." />
+                    <TextBlock Text="Admins" Style="{StaticResource CardTitleText}" Margin="0,0,0,8" />
+                    <TextBlock Text="{Binding RuleText}" Style="{StaticResource HintText}" TextWrapping="Wrap" Margin="0,0,0,10" />
+                    <ScrollViewer MaxHeight="120" VerticalScrollBarVisibility="Auto" Focusable="False">
+                        <ItemsControl ItemsSource="{Binding Admins}" Focusable="False">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <DockPanel Margin="0,0,0,4">
+                                        <Button DockPanel.Dock="Right" Content="Remove" Style="{StaticResource SmallSecondaryButton}"
+                                                Command="{Binding DataContext.RemoveCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                CommandParameter="{Binding}" AutomationProperties.Name="{Binding Name, StringFormat=Remove admin {0}}" />
+                                        <TextBlock Text="{Binding Name}" Foreground="{StaticResource TextPrimary}" FontSize="{StaticResource FontSizeSmall}"
+                                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Text="{Binding SteamIdText}" Style="{StaticResource HintText}" FontFamily="{StaticResource MonoFont}"
+                                                   VerticalAlignment="Center" Margin="8,0,8,0" />
+                                    </DockPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                    <ItemsControl ItemsSource="{Binding OnlinePlayers}" Focusable="False" Margin="0,6,0,0">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <DockPanel Margin="0,0,0,4">
+                                    <Button DockPanel.Dock="Right" Content="Make admin" Style="{StaticResource SmallSecondaryButton}"
+                                            Command="{Binding DataContext.MakeAdminCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                            CommandParameter="{Binding}" AutomationProperties.Name="{Binding Name, StringFormat=Make {0} admin}" />
+                                    <TextBlock Text="{Binding Name, StringFormat=On the server: {0}}" Style="{StaticResource HintText}"
+                                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                </DockPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <Grid Margin="0,8,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="8" />
+                            <ColumnDefinition Width="2*" />
+                            <ColumnDefinition Width="8" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox Grid.Column="0" Style="{StaticResource TextInput}" Tag="Name"
+                                 Text="{Binding NameText, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Admin name" />
+                        <TextBox Grid.Column="2" Style="{StaticResource TextInput}" Tag="SteamID or profile link"
+                                 Text="{Binding SteamIdText, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Admin SteamID" />
+                        <Button Grid.Column="4" Content="Add" Style="{StaticResource SecondaryButton}" Command="{Binding AddCommand}" />
+                    </Grid>
+                    <TextBlock Text="{Binding Error}" Style="{StaticResource HintText}" Foreground="{StaticResource Warning}" TextWrapping="Wrap" Margin="0,6,0,0" />
                 </StackPanel>
             </Border>
             <Border Grid.Column="4" Style="{StaticResource Card}">

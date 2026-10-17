@@ -93,7 +93,7 @@ public sealed partial class ServerConnection : ObservableObject, IDisposable {
     [ObservableProperty]
     private string? _serverName;
 
-    /// <summary>"12:34" from AMXX's amx_timeleft, null without a time limit.</summary>
+    /// <summary>"12:34" until the map ends, from the live feed; null without a time limit.</summary>
     [ObservableProperty]
     private string? _timeLeft;
 
@@ -305,7 +305,19 @@ public sealed partial class ServerConnection : ObservableObject, IDisposable {
                 ActiveModeId = snapshot.ModeId;
             }
             SetCurrentMap(snapshot.MapName);
+            if (snapshot.NextMap.Length > 0) {
+                NextMap = snapshot.NextMap;
+            }
+            TimeLeft = FormatTimeLeft(snapshot.MapSecondsLeft);
         });
+    }
+
+    /// <summary>"12:34", or null without a time limit (the info bar then shows "-").</summary>
+    internal static string? FormatTimeLeft(int seconds) {
+        if (seconds < 0) {
+            return null;
+        }
+        return $"{seconds / 60}:{seconds % 60:00}";
     }
 
     private void SetCurrentMap(string? mapName) {
@@ -349,15 +361,8 @@ public sealed partial class ServerConnection : ObservableObject, IDisposable {
             MaxPlayers = info.MaxPlayers;
             BotCount = info.Bots;
             SetCurrentMap(info.Map);
-
-            IReadOnlyDictionary<string, string>? rules = await _query.QueryRulesAsync(QueryEndpoint);
-            if (rules != null) {
-                // fun_nextmap and fun_timeleft come from the FunServer plugin, which marks them for the server browser.
-                if (rules.TryGetValue("fun_nextmap", out string? nextMap) && nextMap.Length > 0) {
-                    NextMap = nextMap;
-                }
-                TimeLeft = rules.TryGetValue("fun_timeleft", out string? timeLeft) ? timeLeft : null;
-            }
+            // Next map and time left come with the live feed (OnSnapshotReceived):
+            // CS2 answers no server rules query.
         } finally {
             _isPolling = false;
         }

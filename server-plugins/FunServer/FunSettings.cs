@@ -45,20 +45,24 @@ public sealed partial class FunServerPlugin {
         return AdminManager.PlayerHasPermissions(player, AdminPermission);
     }
 
-    private static bool? _hasAnyAdmin;
+    private static bool _hasAnyAdmin;
+    private static DateTime _adminsFileTime = DateTime.MinValue;
 
+    /// <summary>Read again whenever the window saved the file, so a new admin list takes effect at once.</summary>
     private static bool HasAnyAdmin() {
-        if (_hasAnyAdmin != null) {
-            return _hasAnyAdmin.Value;
-        }
         string adminsFile = Path.Combine(Server.GameDirectory, "csgo", "addons", "counterstrikesharp", "configs", "admins.json");
         try {
-            // An empty file holds "{}" or nothing; any admin entry needs a "identity" key.
-            _hasAnyAdmin = File.Exists(adminsFile) && File.ReadAllText(adminsFile).Contains("\"identity\"", StringComparison.OrdinalIgnoreCase);
+            DateTime fileTime = File.Exists(adminsFile) ? File.GetLastWriteTimeUtc(adminsFile) : DateTime.MinValue;
+            if (fileTime == _adminsFileTime) {
+                return _hasAnyAdmin;
+            }
+            _adminsFileTime = fileTime;
+            // An empty file holds "{}" or nothing; any admin entry needs an "identity" key.
+            _hasAnyAdmin = fileTime != DateTime.MinValue && File.ReadAllText(adminsFile).Contains("\"identity\"", StringComparison.OrdinalIgnoreCase);
         } catch (IOException) {
             _hasAnyAdmin = false;
         }
-        return _hasAnyAdmin.Value;
+        return _hasAnyAdmin;
     }
 
     private static Vector EyePosition(CCSPlayerPawn pawn) {
