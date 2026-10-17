@@ -11,7 +11,7 @@ namespace Cs2ServerControl.Server;
 
 /// <summary>
 /// The map details dialog: screenshot, a top-down overview of the real map
-/// geometry and facts from the .bsp, the nav file and the game logs.
+/// geometry and facts from the map package and the game logs.
 /// </summary>
 public sealed partial class MapDetailsViewModel : ModalViewModel {
     private const int OverviewSize = 520;
@@ -62,17 +62,17 @@ public sealed partial class MapDetailsViewModel : ModalViewModel {
     }
 
     private async Task LoadAsync() {
-        BspWireframe? wireframe = null;
-        string bspFile = _connection.Paths.MapFile(MapName);
+        MapWireframe? wireframe = null;
+        string mapFile = _connection.Paths.MapFile(MapName);
         try {
-            if (File.Exists(bspFile)) {
-                wireframe = await BspWireframeLoader.LoadAsync(bspFile);
+            if (File.Exists(mapFile)) {
+                wireframe = await Cs2MapLoader.LoadAsync(mapFile);
                 Overview = RenderOverview(wireframe);
             } else {
-                OverviewMessage = $"{MapName}.bsp is not installed";
+                OverviewMessage = $"{MapName} is not installed";
             }
-        } catch (Exception exception) when (exception is IOException or BspFormatException or UnauthorizedAccessException) {
-            OverviewMessage = "The map file could not be read";
+        } catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException) {
+            OverviewMessage = "The map's world collision could not be read";
         }
 
         IReadOnlyList<MapStat> stats = await MapDetailsReader.ReadAsync(_connection.Paths, MapName, wireframe);
@@ -82,7 +82,7 @@ public sealed partial class MapDetailsViewModel : ModalViewModel {
         IsLoading = false;
     }
 
-    private static ImageSource RenderOverview(BspWireframe wireframe) {
+    private static ImageSource RenderOverview(MapWireframe wireframe) {
         // Token colors, read here because the renderer is a plain service.
         Color Read(string key) => (Color)Application.Current.FindResource(key);
         return MapOverviewRenderer.Render(wireframe, OverviewSize, Read("ViewportBackgroundColor"), Read("WireLowColor"), Read("WireHighColor"));

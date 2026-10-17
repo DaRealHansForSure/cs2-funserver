@@ -74,7 +74,7 @@ public sealed partial class ServerViewModel : ObservableObject, IScreen {
     public static readonly IReadOnlyList<string> QuickCommands = [
         "fun_mode gungame",
         "bot_kick",
-        "sv_restart 1",
+        "mp_restartgame 1",
         "fun_glow @all pink",
     ];
 
@@ -173,7 +173,7 @@ public sealed partial class ServerViewModel : ObservableObject, IScreen {
 
     public IReadOnlyList<string> StatusItems => [
         $"{_connection.PlayerCount} / {_connection.MaxPlayers} players · {_connection.BotCount} bots",
-        $"Fast download on port {ServerProcess.FastDownloadPort}",
+        $"Game port UDP {ServerProcess.GamePort}",
     ];
 
     public string StatusRight => _connection.IsRconConnected ? "RCON connected" : "RCON disconnected";
@@ -457,7 +457,7 @@ public sealed partial class ServerViewModel : ObservableObject, IScreen {
         }
         bool add = await _dialogs.ConfirmAsync(
             "Windows Firewall",
-            "Other PCs can only join when Windows Firewall lets them in. Add inbound rules for UDP/TCP 27015, TCP 27080 and the TV on UDP 27020 now? Windows asks for administrator rights.",
+            "Other PCs can only join when Windows Firewall lets them in. Add inbound rules for UDP 27015 and the TV on UDP 27020 now? Windows asks for administrator rights.",
             "Add rules");
         if (add) {
             await ServerProcess.AddFirewallRulesAsync();

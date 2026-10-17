@@ -4,9 +4,9 @@ using System.Text;
 namespace Cs2ServerControl.Services;
 
 /// <summary>
-/// Follows server\qconsole.log, which hlds.exe writes because of
-/// -condebug. On Windows the output of hlds.exe -console lands in its own
-/// console window and can not be read through stdout, so the log is the only way.
+/// Follows the console.log that cs2.exe writes because of -condebug. The
+/// output of cs2.exe -console lands in its own console window (on the hidden
+/// desktop) and can not be read through stdout, so the log is the only way.
 /// </summary>
 public sealed class ConsoleLogTail : IDisposable {
     private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(250);

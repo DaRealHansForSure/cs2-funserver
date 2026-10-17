@@ -18,7 +18,7 @@ internal sealed class DownloadCache {
         _log = log;
     }
 
-    /// <summary>One client for every request; GameBanana answers browsers only.</summary>
+    /// <summary>One client for every download.</summary>
     public static HttpClient Client => SharedClient;
 
     /// <summary>Downloads a file into the cache and returns its path. Cached files are reused.</summary>

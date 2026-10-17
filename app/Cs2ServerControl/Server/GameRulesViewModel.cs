@@ -59,7 +59,7 @@ public sealed partial class GameRuleRowViewModel : ObservableObject {
 
 /// <summary>
 /// Round time, buy time and the other game rules, per mode: a value set here
-/// goes into server\cstrike\local_&lt;mode&gt;.cfg, which fun_modes runs after
+/// goes into cfg\fun\local_&lt;mode&gt;.cfg, which the FunServer plugin runs after
 /// local.cfg only in that mode, so GunGame keeps its own buy time while
 /// Classic gets a longer round. Part of the Server screen's draft; every
 /// mode keeps its typed values until Apply or Discard.
@@ -78,14 +78,14 @@ public sealed partial class GameRulesViewModel : ObservableObject {
 
     public GameRulesViewModel(ServerConnection connection) {
         _connection = connection;
-        Modes = MapModes.AllModes.Select(modeId => new ModeChoice(modeId, GameModes.TitleOf(modeId))).ToList();
+        Modes = GameModes.All.Select(mode => new ModeChoice(mode.Id, mode.Title)).ToList();
         _selectedMode = Modes[0];
         Load();
     }
 
     public IReadOnlyList<ModeChoice> Modes { get; }
     public ObservableCollection<GameRuleRowViewModel> Rows { get; } = [];
-    public string FileHint => $"Empty = mode default · saved in cstrike\\local_{SelectedMode.Id}.cfg";
+    public string FileHint => $"Empty = mode default · saved in cfg\\fun\\local_{SelectedMode.Id}.cfg";
 
     /// <summary>Reads every mode's file and defaults again and drops all drafts.</summary>
     public void Load() {

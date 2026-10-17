@@ -184,7 +184,7 @@
                                         Command="{Binding OpenFolderCommand}" CommandParameter="logs" AutomationProperties.Name="Open the plugin logs folder" />
                                 <StackPanel>
                                     <TextBlock Text="Plugin logs" Style="{StaticResource Cell}" Foreground="{StaticResource TextPrimary}" />
-                                    <TextBlock Text="server\cstrike\addons\amxmodx\logs" Style="{StaticResource HintText}" />
+                                    <TextBlock Text="server\game\csgo\addons\counterstrikesharp\logs" Style="{StaticResource HintText}" />
                                 </StackPanel>
                             </DockPanel>
                             <DockPanel>

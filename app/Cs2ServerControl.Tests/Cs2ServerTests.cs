@@ -16,6 +16,7 @@ public class Cs2ServerTests {
         Assert.Contains("-ip 192.168.1.50", arguments);
         Assert.Contains("-maxplayers 16", arguments);
         Assert.Contains("+sv_lan 1", arguments);
+        Assert.Contains("+sv_hibernate_when_empty 0", arguments);
         Assert.Contains("+game_type 1 +game_mode 0", arguments);
         Assert.Contains("+rcon_password secret", arguments);
         Assert.EndsWith("+map ar_shoots", arguments);

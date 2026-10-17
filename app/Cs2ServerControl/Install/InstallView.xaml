@@ -49,7 +49,7 @@
                 <StackPanel>
                     <TextBlock Text="Install or repair" Style="{StaticResource CardTitleText}" Margin="0,0,0,8" />
                     <TextBlock Style="{StaticResource HintText}" Margin="0,0,0,12"
-                               Text="Server, mods, bots, plugins and the map pack. Safe to run again: downloads are cached and every step only fixes what is missing. The server has to be stopped." />
+                               Text="The CS2 server (copied from your Steam CS2 when there is one), Metamod, CounterStrikeSharp and our plugins. Safe to run again: downloads are cached and every step only fixes what is missing. The server has to be stopped." />
                     <Button Content="Install or repair" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Left"
                             Command="{Binding InstallServerCommand}" IsEnabled="{Binding CanStart}" />
                 </StackPanel>
@@ -58,14 +58,14 @@
                 <StackPanel>
                     <TextBlock Text="Maps" Style="{StaticResource CardTitleText}" Margin="0,0,0,8" />
                     <TextBlock Style="{StaticResource HintText}" TextWrapping="Wrap"
-                               Text="Update maps and the map market (install more maps from GameBanana) are on the Maps screen. Their log shows there and here." />
+                               Text="Valve's maps come with the server, the map lists per mode with the package. Maps from the Steam Workshop follow in a later version." />
                 </StackPanel>
             </Border>
             <Border Grid.Column="4" Style="{StaticResource Card}">
                 <StackPanel>
                     <TextBlock Text="Rebuild plugins" Style="{StaticResource CardTitleText}" Margin="0,0,0,8" />
                     <TextBlock Style="{StaticResource HintText}" Margin="0,0,0,12"
-                               Text="Copies server-files into the server and compiles the fun plugins again. They load on the next map change." />
+                               Text="Copies server-files and the FunServer plugin into the server again and puts the Metamod line back after a CS2 update. The configs apply on the next map change." />
                     <Button Content="Rebuild plugins" Style="{StaticResource SecondaryButton}" HorizontalAlignment="Left"
                             Command="{Binding RebuildPluginsCommand}" IsEnabled="{Binding CanStart}" />
                 </StackPanel>

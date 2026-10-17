@@ -6,9 +6,8 @@ using System.Windows.Media.Imaging;
 namespace Cs2ServerControl.Services;
 
 /// <summary>
-/// Small map pictures: the screenshot the installer downloaded into
-/// tools\previews, else the stock radar image from cstrike\overviews, else
-/// the top-down view the Maps screen rendered into tools\previews\auto.
+/// Small map pictures: a .jpg or .png of the host's in tools\previews, else
+/// a loose radar image of the map from resource\overviews.
 /// </summary>
 public sealed class MapThumbnails {
     // WPF reads these without extra codecs; the radar .tga files are skipped.
@@ -44,7 +43,7 @@ public sealed class MapThumbnails {
     }
 
     private ImageSource? Load(string mapName) {
-        foreach (string folder in new[] { _paths.PreviewsDir, _paths.OverviewsDir, _paths.GeneratedPreviewsDir }) {
+        foreach (string folder in new[] { _paths.PreviewsDir, _paths.OverviewsDir }) {
             foreach (string extension in Extensions) {
                 string candidate = Path.Combine(folder, mapName + extension);
                 if (!File.Exists(candidate)) {

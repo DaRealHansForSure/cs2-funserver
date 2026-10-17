@@ -64,7 +64,7 @@ public sealed partial class ShellViewModel : ObservableObject {
         Stats = new StatsViewModel(connection);
         Install = new InstallViewModel(connection, dialogs);
         InfoBar = new ServerInfoBarViewModel(connection);
-        Maps = new MapsViewModel(connection, dialogs, Install, PickOnServer, QueueMissingNavs);
+        Maps = new MapsViewModel(connection, dialogs, PickOnServer);
         Options = new OptionsViewModel(connection, [
             new OptionChoice(LiveMapKey, "Live Map"),
             new OptionChoice(ServerKey, "Server"),
@@ -154,19 +154,15 @@ public sealed partial class ShellViewModel : ObservableObject {
     }
 
     /// <summary>
-    /// What the command line asked for: --install installs, --update-maps
-    /// updates the maps, --start starts the server. A package that
-    /// is not installed yet always opens on the Install screen.
+    /// What the command line asked for: --install installs, --start starts
+    /// the server. A package that is not installed yet always opens on the
+    /// Install screen.
     /// </summary>
     public void RunStartupCommand(AppCommand command) {
         switch (command.Kind) {
             case AppCommandKind.Install:
                 CurrentScreen = Install;
                 _ = Install.InstallServer();
-                return;
-            case AppCommandKind.UpdateMaps:
-                CurrentScreen = Maps;
-                _ = Maps.UpdateMaps();
                 return;
             case AppCommandKind.Start:
                 if (!Connection.Paths.IsServerInstalled) {
@@ -198,12 +194,6 @@ public sealed partial class ShellViewModel : ObservableObject {
         bool picked = Server.PickModeAndMap(modeId, mapName);
         CurrentScreen = Server;
         return picked;
-    }
-
-    /// <summary>Queued on the Bots screen, where Apply builds them like any other nav action.</summary>
-    private void QueueMissingNavs() {
-        CurrentScreen = Bots;
-        Bots.QueueAllMissingCommand.Execute(null);
     }
 
     private void SelectIf(bool isSelected, IScreen screen) {

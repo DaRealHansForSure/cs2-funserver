@@ -49,9 +49,6 @@
     <Color x:Key="AxisZColor">#539BF5</Color>
     <Color x:Key="SelectionRingColor">#FFFFFF</Color>
     <!-- Nav mesh debug view: violet stays apart from the teal map and the team colors. -->
-    <Color x:Key="NavAreaColor">#A78BFA</Color>
-    <Color x:Key="NavLinkColor">#6B5CA5</Color>
-    <Color x:Key="HidingSpotColor">#F2C66B</Color>
 
     <SolidColorBrush x:Key="WindowBackground" Color="{StaticResource WindowBackgroundColor}" />
     <SolidColorBrush x:Key="RailBackground" Color="{StaticResource RailBackgroundColor}" />
@@ -176,7 +173,6 @@
     <sys:Double x:Key="ConsoleMinHeight">470</sys:Double>
     <sys:Double x:Key="RadioSize">18</sys:Double>
     <sys:Double x:Key="SelectMaxWidth">260</sys:Double>
-    <sys:Double x:Key="NavTableMaxHeight">410</sys:Double>
     <sys:Double x:Key="ConfirmWidth">420</sys:Double>
     <sys:Double x:Key="MapDetailsWidth">900</sys:Double>
 

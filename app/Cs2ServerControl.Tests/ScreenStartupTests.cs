@@ -41,7 +41,7 @@ public class ScreenStartupTests : IDisposable {
     [Fact]
     public void MapsStartsOnAnEmptyPackage() {
         var dialogs = new NoDialogs();
-        var maps = new MapsViewModel(_connection, dialogs, new InstallViewModel(_connection, dialogs), (_, _) => false, () => { });
+        var maps = new MapsViewModel(_connection, dialogs, (_, _) => false);
 
         Assert.Equal("All maps", maps.SelectedFilter.Title);
         Assert.Empty(maps.Rows);

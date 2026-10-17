@@ -124,9 +124,9 @@ public sealed partial class LiveMapViewModel : ObservableObject, IScreen {
     private static readonly TimeSpan ShotLifetime = TimeSpan.FromSeconds(0.8);
     private const int MaxShotsShown = 400;
 
-    // GoldSrc's player origin is the hull center: feet 36 units below, eyes 28 above.
-    public const float FeetOffset = -36f;
-    public const float HeadOffset = 28f;
+    // CS2 sends the pawn origin, which is at the feet; standing eyes are 64 units up.
+    public const float FeetOffset = 0f;
+    public const float HeadOffset = 64f;
 
     private readonly ServerConnection _connection;
     private readonly IDialogService _dialogs;
@@ -162,23 +162,12 @@ public sealed partial class LiveMapViewModel : ObservableObject, IScreen {
     [ObservableProperty]
     private bool _showShots;
 
-    /// <summary>Debug view: zBot's walkable areas, their links and hiding spots.</summary>
-    [ObservableProperty]
-    private bool _showNavMesh;
-
-    /// <summary>The nav mesh of the shown map, null when off, missing or unreadable.</summary>
-    [ObservableProperty]
-    private NavMesh? _navMesh;
-
-    [ObservableProperty]
-    private string? _navMeshMessage;
-
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CameraModeText))]
     private bool _isFollowing;
 
     [ObservableProperty]
-    private BspWireframe? _wireframe;
+    private MapWireframe? _wireframe;
 
     [ObservableProperty]
     private string? _viewportMessage = "Waiting for the server";
@@ -200,7 +189,6 @@ public sealed partial class LiveMapViewModel : ObservableObject, IScreen {
         _showTrails = connection.Settings.ShowTrails;
         _showShots = connection.Settings.ShowShots;
         _showWeapons = connection.Settings.ShowWeapons;
-        _showNavMesh = connection.Settings.ShowNavMesh;
 
         Dispatcher dispatcher = Dispatcher.CurrentDispatcher;
         _connection.Feed.SnapshotReceived += (_, snapshot) => dispatcher.BeginInvoke(() => OnSnapshot(snapshot));
@@ -497,39 +485,6 @@ public sealed partial class LiveMapViewModel : ObservableObject, IScreen {
         _connection.Settings.Save();
     }
 
-    partial void OnShowNavMeshChanged(bool value) {
-        _connection.Settings.ShowNavMesh = value;
-        _connection.Settings.Save();
-        _ = LoadNavMeshAsync();
-    }
-
-    /// <summary>Reads maps\&lt;map&gt;.nav in the background while the toggle is on.</summary>
-    private async Task LoadNavMeshAsync() {
-        NavMeshMessage = null;
-        if (!ShowNavMesh || string.IsNullOrEmpty(MapName)) {
-            NavMesh = null;
-            return;
-        }
-
-        string mapName = MapName;
-        string navFile = _connection.Paths.NavFile(mapName);
-        if (!File.Exists(navFile)) {
-            NavMesh = null;
-            NavMeshMessage = $"No navigation file for {mapName} yet (Bots screen: Generate)";
-            return;
-        }
-
-        try {
-            NavMesh mesh = await Task.Run(() => NavMeshReader.Load(navFile));
-            if (mapName == MapName) {
-                NavMesh = mesh;
-            }
-        } catch (Exception exception) when (exception is IOException or InvalidDataException) {
-            NavMesh = null;
-            NavMeshMessage = $"The navigation file of {mapName} could not be read";
-        }
-    }
-
     partial void OnShowTrailsChanged(bool value) {
         _connection.Settings.ShowTrails = value;
         _connection.Settings.Save();
@@ -775,28 +730,27 @@ public sealed partial class LiveMapViewModel : ObservableObject, IScreen {
 
         MapName = mapName;
         UpdateTitle();
-        string bspFile = _connection.Paths.MapFile(mapName);
-        if (!File.Exists(bspFile)) {
+        string mapFile = _connection.Paths.MapFile(mapName);
+        if (!File.Exists(mapFile)) {
             Wireframe = null;
-            ViewportMessage = $"{mapName}.bsp not found";
+            ViewportMessage = $"{mapName} is not installed";
             return;
         }
 
         int version = ++_mapLoadVersion;
         ViewportMessage = "Loading map...";
         try {
-            BspWireframe wireframe = await BspWireframeLoader.LoadAsync(bspFile);
+            MapWireframe wireframe = await Cs2MapLoader.LoadAsync(mapFile);
             if (version != _mapLoadVersion) {
                 return;
             }
             Camera.Fit(wireframe.BoundsMin, wireframe.BoundsMax, IsTopView);
             Wireframe = wireframe;
-            _ = LoadNavMeshAsync();
             ViewportMessage = null;
-        } catch (Exception exception) when (exception is IOException or BspFormatException or UnauthorizedAccessException) {
+        } catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException) {
             if (version == _mapLoadVersion) {
                 Wireframe = null;
-                ViewportMessage = $"Could not read {mapName}.bsp: {exception.Message}";
+                ViewportMessage = $"Could not read {mapName}: {exception.Message}";
             }
         }
     }

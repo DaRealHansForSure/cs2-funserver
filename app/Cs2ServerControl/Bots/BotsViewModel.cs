@@ -11,83 +11,6 @@ namespace Cs2ServerControl.Bots;
 
 public sealed record SelectOption(string Label, string Value);
 
-public enum NavState {
-    Present,
-    Missing,
-    Queued,
-    Generating,
-}
-
-public sealed partial class NavRowViewModel : ObservableObject {
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(StatusText), nameof(ActionText), nameof(CanRunAction), nameof(IsGenerating))]
-    private NavState _state;
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(StatusText))]
-    private TimeSpan _elapsed;
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasStep))]
-    private string? _step;
-
-    public NavRowViewModel(string mapName, NavState state) {
-        MapName = mapName;
-        _state = state;
-    }
-
-    public string MapName { get; }
-
-    /// <summary>The state from the file alone, what Discard goes back to.</summary>
-    public bool FileExists { get; set; }
-
-    /// <summary>The file belongs to another build of the map; shown as Outdated, rebuilt like a missing one.</summary>
-    public bool IsOutdated { get; set; }
-
-    /// <summary>The state the file alone gives, what Discard and a finished build go back to.</summary>
-    public NavState FileState => FileExists && !IsOutdated ? NavState.Present : NavState.Missing;
-
-    /// <summary>After IsOutdated changed without a state change: the status text has to follow.</summary>
-    public void RefreshStatus() {
-        OnPropertyChanged(nameof(StatusText));
-    }
-
-    public bool IsGenerating => State == NavState.Generating;
-    public bool HasStep => !string.IsNullOrEmpty(Step);
-    public bool CanRunAction => State != NavState.Generating;
-
-    // Icon plus text, so the state never depends on color alone.
-    public string StatusText {
-        get {
-            switch (State) {
-                case NavState.Present:
-                    return "✓ Present";
-                case NavState.Missing:
-                    return IsOutdated ? "! Outdated" : "! Missing";
-                case NavState.Queued:
-                    return "+ On Apply";
-                default:
-                    return $"◔ Generating {(int)Elapsed.TotalMinutes}:{Elapsed.Seconds:00}";
-            }
-        }
-    }
-
-    public string ActionText {
-        get {
-            switch (State) {
-                case NavState.Present:
-                    return "Regenerate";
-                case NavState.Missing:
-                    return "Generate";
-                case NavState.Queued:
-                    return "Undo";
-                default:
-                    return "Running...";
-            }
-        }
-    }
-}
-
 public sealed partial class ActiveBotViewModel : ObservableObject {
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(KickText))]
@@ -109,7 +32,7 @@ public sealed partial class ActiveBotViewModel : ObservableObject {
 
 /// <summary>
 /// The Bots screen works as a draft: settings and actions (kick, add,
-/// reconnect, nav files) only collect until Apply, Discard drops them.
+/// reconnect) only collect until Apply, Discard drops them.
 /// </summary>
 public sealed partial class BotsViewModel : ObservableObject, IScreen {
     public static readonly IReadOnlyList<string> DifficultyNames = ["Easy", "Normal", "Hard", "Expert"];
@@ -122,16 +45,15 @@ public sealed partial class BotsViewModel : ObservableObject, IScreen {
     ];
 
     private static readonly TimeSpan RescanInterval = TimeSpan.FromSeconds(5);
-    private static readonly TimeSpan ElapsedInterval = TimeSpan.FromSeconds(1);
 
     private readonly ServerConnection _connection;
-    private readonly NavBuilder _navBuilder;
     private readonly DispatcherTimer _rescanTimer;
-    private readonly DispatcherTimer _elapsedTimer;
     private readonly HashSet<string> _pendingKicks = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, DateTime> _buildingSince = new(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyDictionary<string, int> _skills = new Dictionary<string, int>();
     private IReadOnlyList<LivePlayer> _lastBots = [];
+    private int _humanCount;
+    // What the server has, not the draft: the hint must not vanish before Apply.
+    private bool _savedWaitForHuman = true;
     private bool _isLoading;
 
     [ObservableProperty]
@@ -220,25 +142,19 @@ public sealed partial class BotsViewModel : ObservableObject, IScreen {
 
     public BotsViewModel(ServerConnection connection) {
         _connection = connection;
-        _navBuilder = new NavBuilder(connection.Paths);
         _quotaMode = QuotaModeOptions[0];
         _joinTeam = JoinTeamOptions[0];
         _chatter = ChatterOptions[0];
 
         LoadSettingsFromConfig();
         _skills = BotProfileReader.ReadSkills(connection.Paths.BotProfileFile);
-        RescanNavFiles();
 
         Dispatcher dispatcher = Dispatcher.CurrentDispatcher;
         _connection.Feed.SnapshotReceived += (_, snapshot) => dispatcher.BeginInvoke(() => UpdateBots(snapshot));
         _connection.PropertyChanged += OnConnectionChanged;
-        _connection.MapChanged += (_, _) => RescanNavFiles();
-        _connection.ServerLinesReceived += OnServerLines;
 
         _rescanTimer = new DispatcherTimer(RescanInterval, DispatcherPriority.Background, (_, _) => Refresh(), dispatcher);
         _rescanTimer.Start();
-        _elapsedTimer = new DispatcherTimer(ElapsedInterval, DispatcherPriority.Background, (_, _) => UpdateElapsed(), dispatcher);
-        _elapsedTimer.Start();
     }
 
     public ServerConnection Connection => _connection;
@@ -264,7 +180,6 @@ public sealed partial class BotsViewModel : ObservableObject, IScreen {
         new("Off", "off"),
     ];
 
-    public ObservableCollection<NavRowViewModel> NavRows { get; } = [];
     public ObservableCollection<ActiveBotViewModel> ActiveBots { get; } = [];
 
     public string SettingsSourceText => HasCustomSettings ? "Your settings (local_bots.cfg)" : "Package defaults";
@@ -398,7 +313,6 @@ public sealed partial class BotsViewModel : ObservableObject, IScreen {
                 return;
             }
             await ApplyBotActionsAsync();
-            await ApplyNavActionsAsync();
         } finally {
             IsApplying = false;
         }
@@ -415,9 +329,6 @@ public sealed partial class BotsViewModel : ObservableObject, IScreen {
         PendingTerroristAdds = 0;
         PendingCounterTerroristAdds = 0;
         IsReconnectPending = false;
-        foreach (NavRowViewModel row in NavRows.Where(row => row.State == NavState.Queued)) {
-            row.State = row.FileState;
-        }
         UpdatePendingCount();
     }
 
@@ -450,69 +361,8 @@ public sealed partial class BotsViewModel : ObservableObject, IScreen {
         UpdatePendingCount();
     }
 
-    /// <summary>
-    /// Queues every map without a nav file. Without one, the first round on
-    /// that map starts while zBot is still learning it, so building them
-    /// before the LAN evening is worth it. Runs on Apply like every row.
-    /// </summary>
-    [RelayCommand]
-    private void QueueAllMissing() {
-        foreach (NavRowViewModel row in NavRows.Where(row => row.State == NavState.Missing)) {
-            row.State = NavState.Queued;
-        }
-        UpdatePendingCount();
-    }
-
-    public int MissingNavCount => NavRows.Count(row => row.State == NavState.Missing);
-
-    [RelayCommand]
-    private void ToggleNavAction(NavRowViewModel? row) {
-        if (row == null || row.State == NavState.Generating) {
-            return;
-        }
-        if (row.State == NavState.Queued) {
-            row.State = row.FileState;
-        } else {
-            row.State = NavState.Queued;
-        }
-        UpdatePendingCount();
-    }
-
     private void UpdatePendingCount() {
-        PendingActionCount = _pendingKicks.Count + NavRows.Count(row => row.State == NavState.Queued);
-        OnPropertyChanged(nameof(MissingNavCount));
-        SortNavRows();
-    }
-
-    /// <summary>
-    /// What needs attention first: running builds, then queued ones, then
-    /// missing or outdated files, then the maps that are done; by name in
-    /// each group. Moves rows instead of rebuilding, so nothing flickers.
-    /// </summary>
-    private void SortNavRows() {
-        List<NavRowViewModel> sorted = NavRows
-            .OrderBy(row => SortRank(row.State))
-            .ThenBy(row => row.MapName, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-        for (int index = 0; index < sorted.Count; index++) {
-            int current = NavRows.IndexOf(sorted[index]);
-            if (current != index) {
-                NavRows.Move(current, index);
-            }
-        }
-    }
-
-    private static int SortRank(NavState state) {
-        switch (state) {
-            case NavState.Generating:
-                return 0;
-            case NavState.Queued:
-                return 1;
-            case NavState.Missing:
-                return 2;
-            default:
-                return 3;
-        }
+        PendingActionCount = _pendingKicks.Count;
     }
 
     private async Task<bool> ApplySettingsAsync() {
@@ -531,6 +381,8 @@ public sealed partial class BotsViewModel : ObservableObject, IScreen {
             await _connection.QueryAsync(string.Join(";", cvars.Select(cvar => $"{cvar.Key} \"{cvar.Value}\"")));
         }
         AreSettingsChanged = false;
+        _savedWaitForHuman = WaitForHuman;
+        OnPropertyChanged(nameof(IsWaitingForHuman));
         return true;
     }
 
@@ -562,61 +414,6 @@ public sealed partial class BotsViewModel : ObservableObject, IScreen {
         UpdatePendingCount();
     }
 
-    /// <summary>
-    /// Every map, the current one included, is built by the hidden helper
-    /// server, one after the other. The game server is never involved: zBot
-    /// needs a bot to start learning, and with "wait for a human" no bot
-    /// would come, so bot_nav_analyze on the game server could wait forever.
-    /// The game server uses a new file from its next map start on.
-    /// </summary>
-    private async Task ApplyNavActionsAsync() {
-        List<NavRowViewModel> queued = NavRows.Where(row => row.State == NavState.Queued).ToList();
-        foreach (NavRowViewModel row in queued) {
-            StartGenerating(row);
-        }
-        UpdatePendingCount();
-
-        foreach (NavRowViewModel row in queued) {
-            if (!_navBuilder.IsAvailable) {
-                ApplyError = "navbuild.cfg is missing. Run Rebuild plugins on the Install screen to update the server files.";
-                FinishGenerating(row);
-                continue;
-            }
-            bool built = await _navBuilder.BuildAsync(row.MapName, replace: row.FileExists);
-            if (!built) {
-                ApplyError = $"No navigation file was built for {row.MapName}.";
-            }
-            FinishGenerating(row);
-        }
-    }
-
-    private void StartGenerating(NavRowViewModel row) {
-        _buildingSince[row.MapName] = DateTime.UtcNow;
-        row.Step = null;
-        row.Elapsed = TimeSpan.Zero;
-        row.State = NavState.Generating;
-        SortNavRows();
-    }
-
-    private void FinishGenerating(NavRowViewModel row) {
-        _buildingSince.Remove(row.MapName);
-        row.Step = null;
-        NavFileState file = NavFileScanner.Check(_connection.Paths, row.MapName);
-        row.FileExists = file.Exists;
-        row.IsOutdated = file.IsOutdated;
-        row.State = row.FileState;
-        row.RefreshStatus();
-        SortNavRows();
-    }
-
-    private void UpdateElapsed() {
-        foreach (NavRowViewModel row in NavRows.Where(row => row.State == NavState.Generating)) {
-            if (_buildingSince.TryGetValue(row.MapName, out DateTime since)) {
-                row.Elapsed = DateTime.UtcNow - since;
-            }
-        }
-    }
-
     private void SetDifficultyIf(bool isSelected, int level) {
         if (isSelected) {
             Difficulty = level;
@@ -638,6 +435,8 @@ public sealed partial class BotsViewModel : ObservableObject, IScreen {
         ShowValues(values);
         HasCustomSettings = custom.Count > 0;
         AreSettingsChanged = false;
+        _savedWaitForHuman = WaitForHuman;
+        OnPropertyChanged(nameof(IsWaitingForHuman));
     }
 
     /// <summary>
@@ -697,69 +496,6 @@ public sealed partial class BotsViewModel : ObservableObject, IScreen {
         if (!_connection.Feed.HasLiveData) {
             UpdateBots(null);
         }
-        RescanNavFiles();
-    }
-
-    private void RescanNavFiles() {
-        IReadOnlyList<NavFileState> files = NavFileScanner.Scan(_connection.Paths);
-
-        var byName = NavRows.ToDictionary(row => row.MapName, StringComparer.OrdinalIgnoreCase);
-        bool sameList = files.Count == NavRows.Count && files.All(file => byName.ContainsKey(file.MapName));
-        if (!sameList) {
-            NavRows.Clear();
-            byName.Clear();
-            foreach (NavFileState file in files) {
-                var row = new NavRowViewModel(file.MapName, file.IsUsable ? NavState.Present : NavState.Missing) {
-                    FileExists = file.Exists,
-                    IsOutdated = file.IsOutdated,
-                };
-                NavRows.Add(row);
-                byName[file.MapName] = row;
-            }
-        }
-
-        foreach (NavFileState file in files) {
-            NavRowViewModel row = byName[file.MapName];
-            row.FileExists = file.Exists;
-            row.IsOutdated = file.IsOutdated;
-            // Queued and running rows keep their state until Apply or the build ends.
-            if (row.State == NavState.Present || row.State == NavState.Missing) {
-                row.State = row.FileState;
-                row.RefreshStatus();
-            }
-        }
-        UpdatePendingCount();
-    }
-
-    /// <summary>
-    /// Follows zBot on the running server: its steps for the current map, and
-    /// a build zBot started by itself because a bot joined a map without a mesh.
-    /// </summary>
-    private void OnServerLines(object? sender, IReadOnlyList<string> lines) {
-        string? map = _connection.CurrentMap;
-        if (map == null) {
-            return;
-        }
-        NavRowViewModel? row = NavRows.FirstOrDefault(candidate => string.Equals(candidate.MapName, map, StringComparison.OrdinalIgnoreCase));
-        if (row == null) {
-            return;
-        }
-
-        foreach (string line in lines) {
-            if (NavFileScanner.IsDoneLine(line)) {
-                FinishGenerating(row);
-                continue;
-            }
-
-            string? step = NavFileScanner.ReadStep(line);
-            if (step == null) {
-                continue;
-            }
-            if (row.State != NavState.Generating) {
-                StartGenerating(row);
-            }
-            row.Step = step;
-        }
     }
 
     private void RefreshActiveBots() {
@@ -785,8 +521,19 @@ public sealed partial class BotsViewModel : ObservableObject, IScreen {
 
     private void UpdateBots(LiveSnapshot? snapshot) {
         _lastBots = snapshot == null ? [] : snapshot.Players.Where(player => player.IsBot).ToList();
+        int humans = snapshot == null ? 0 : snapshot.Players.Count(player => !player.IsBot);
+        if (humans != _humanCount) {
+            _humanCount = humans;
+            OnPropertyChanged(nameof(IsWaitingForHuman));
+        }
         RefreshActiveBots();
     }
+
+    /// <summary>
+    /// CS2 keeps every bot out of the teams while "wait for a human" is on and
+    /// nobody plays, added bots too; they then sit on the server unseen.
+    /// </summary>
+    public bool IsWaitingForHuman => _connection.IsRunning && _savedWaitForHuman && _humanCount == 0;
 
     private string SkillText(string botName) {
         if (_skills.TryGetValue(botName, out int skill)) {
@@ -807,8 +554,12 @@ public sealed partial class BotsViewModel : ObservableObject, IScreen {
     }
 
     private void OnConnectionChanged(object? sender, PropertyChangedEventArgs e) {
-        if (e.PropertyName == nameof(ServerConnection.IsRunning) && !_connection.IsRunning) {
+        if (e.PropertyName != nameof(ServerConnection.IsRunning)) {
+            return;
+        }
+        if (!_connection.IsRunning) {
             UpdateBots(null);
         }
+        OnPropertyChanged(nameof(IsWaitingForHuman));
     }
 }

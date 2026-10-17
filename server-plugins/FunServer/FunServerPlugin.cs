@@ -18,7 +18,7 @@ public sealed partial class FunServerPlugin : BasePlugin {
     public override void Load(bool hotReload) {
         LoadModeConfigs();
         LoadLiveFeed();
-        Console.WriteLine($"[FunServer] {ModuleVersion} loaded on {Server.MapName}");
+        Server.PrintToConsole($"[FunServer] {ModuleVersion} loaded on {Server.MapName}");
     }
 
     public override void Unload(bool hotReload) {

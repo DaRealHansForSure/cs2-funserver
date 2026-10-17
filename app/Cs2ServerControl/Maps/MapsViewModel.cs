@@ -1,12 +1,8 @@
 using System.Collections.ObjectModel;
-using System.Diagnostics;
 using System.Globalization;
-using System.IO;
-using System.Windows;
 using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Cs2ServerControl.Install;
 using Cs2ServerControl.Server;
 using Cs2ServerControl.Services;
 using Cs2ServerControl.Shell;
@@ -25,15 +21,11 @@ public sealed partial class MapLibraryRowViewModel : ObservableObject {
 
     public MapLibraryEntry Entry { get; }
     public string Name => Entry.Name;
-    public bool HasNav => Entry.HasNav;
     public bool HasPicture => Thumbnail != null;
     public bool IsInNoMode => Entry.ModeIds.Count == 0;
 
     public string ModesText {
         get {
-            if (!Entry.IsPlayable) {
-                return $"Not playable, needs {string.Join(", ", Entry.MissingFiles!)}";
-            }
             if (Entry.ModeIds.Count == 0) {
                 return "In no map list";
             }
@@ -41,27 +33,6 @@ public sealed partial class MapLibraryRowViewModel : ObservableObject {
         }
     }
 
-    public string SourceText {
-        get {
-            switch (Entry.Source) {
-                case MapSource.Stock:
-                    return "Stock";
-                case MapSource.MapPack:
-                    return "Map pack";
-                default:
-                    return "Custom";
-            }
-        }
-    }
-
-    public string NavText {
-        get {
-            if (HasNav) {
-                return "Present";
-            }
-            return Entry.IsNavOutdated ? "Outdated" : "Missing";
-        }
-    }
     public string SizeText => (Entry.SizeBytes / 1024.0 / 1024.0).ToString("0.0", CultureInfo.InvariantCulture) + " MB";
 
     /// <summary>The first mode with a tile on the Server screen, where Pick takes the map.</summary>
@@ -74,23 +45,15 @@ public sealed record MapFilter(string Title, Func<MapLibraryRowViewModel, bool> 
 
 /// <summary>
 /// The Maps screen: every installed map in one table, with the modes that
-/// play it, its nav file and picture, the custom-maps folder, and the
-/// market tab to install more maps from GameBanana. Map updates and market
-/// installs run here, through the same installer and log as the Install
-/// screen. Pick goes to the Server draft, nav files to the Bots queue.
+/// play it and its picture. Pick goes to the Server draft, Next to the
+/// running server.
 /// </summary>
 public sealed partial class MapsViewModel : ObservableObject, IScreen {
     private readonly ServerConnection _connection;
     private readonly IDialogService _dialogs;
     private readonly MapThumbnails _thumbnails;
     private readonly Func<string, string, bool> _pickOnServer;
-    private readonly Action _queueMissingNavs;
-    private readonly InstallViewModel _install;
     private List<MapLibraryRowViewModel> _allRows = [];
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsInstalledTab))]
-    private bool _isMarketTab;
 
     [ObservableProperty]
     private MapFilter _selectedFilter;
@@ -101,82 +64,34 @@ public sealed partial class MapsViewModel : ObservableObject, IScreen {
     [ObservableProperty]
     private string _summary = "";
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CanGenerateThumbnails))]
-    private bool _isGenerating;
-
-    [ObservableProperty]
-    private string _generateProgress = "";
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CanGenerateThumbnails), nameof(GenerateThumbnailsText))]
-    private int _missingPictureCount;
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(QueueNavText), nameof(CanQueueNavs))]
-    private int _missingNavCount;
-
-    public MapsViewModel(ServerConnection connection, IDialogService dialogs, InstallViewModel install,
-            Func<string, string, bool> pickOnServer, Action queueMissingNavs) {
+    public MapsViewModel(ServerConnection connection, IDialogService dialogs, Func<string, string, bool> pickOnServer) {
         _connection = connection;
         _dialogs = dialogs;
         _pickOnServer = pickOnServer;
-        _queueMissingNavs = queueMissingNavs;
-        _install = install;
         _thumbnails = new MapThumbnails(connection.Paths);
-        Market = new MarketViewModel(connection, dialogs, install, AfterMapsChangedAsync);
 
         List<MapFilter> filters = [new("All maps", _ => true)];
-        foreach (string modeId in MapModes.AllModes) {
-            filters.Add(new MapFilter(GameModes.TitleOf(modeId), row => row.Entry.ModeIds.Contains(modeId)));
+        foreach (GameMode mode in GameModes.All) {
+            filters.Add(new MapFilter(mode.Title, row => row.Entry.ModeIds.Contains(mode.Id)));
         }
-        // Like the Bots queue: only maps in a map list get a nav file built.
-        filters.Add(new MapFilter("Missing navigation", row => !row.HasNav && !row.IsInNoMode));
         filters.Add(new MapFilter("Missing picture", row => !row.HasPicture));
         filters.Add(new MapFilter("In no map list", row => row.IsInNoMode));
-        filters.Add(new MapFilter("Custom maps", row => row.Entry.Source == MapSource.Custom));
-        filters.Add(new MapFilter("Not playable", row => !row.Entry.IsPlayable));
         Filters = filters;
         _selectedFilter = filters[0];
     }
 
-    public MarketViewModel Market { get; }
-
-    /// <summary>The shared installer: its log and progress show in the activity card here.</summary>
-    public InstallViewModel Install => _install;
-
-    public bool IsInstalledTab {
-        get => !IsMarketTab;
-        set => IsMarketTab = !value;
-    }
-
     public IReadOnlyList<MapFilter> Filters { get; }
     public ObservableCollection<MapLibraryRowViewModel> Rows { get; } = [];
-    public ObservableCollection<WaitingMap> WaitingMaps { get; } = [];
     public bool IsServerRunning => _connection.IsRunning;
-    public bool CanGenerateThumbnails => !IsGenerating && MissingPictureCount > 0;
-    public string GenerateThumbnailsText => $"Generate missing pictures ({MissingPictureCount})";
-    public bool CanQueueNavs => MissingNavCount > 0;
-    public string QueueNavText => $"Queue missing navigation ({MissingNavCount})";
-    public string CustomMapsDir => Path.Combine(_connection.Paths.RootDir, "custom-maps");
 
     public IReadOnlyList<string> StatusItems => [Summary];
     public string StatusRight => "Pictures from tools\\previews";
 
     public void OnShown() {
         _ = RefreshAsync();
-        if (IsMarketTab) {
-            Market.OnShown();
-        }
     }
 
     public void OnHidden() {
-    }
-
-    partial void OnIsMarketTabChanged(bool value) {
-        if (value) {
-            Market.OnShown();
-        }
     }
 
     partial void OnSelectedFilterChanged(MapFilter value) {
@@ -190,15 +105,12 @@ public sealed partial class MapsViewModel : ObservableObject, IScreen {
     [RelayCommand]
     private async Task RefreshAsync() {
         PackagePaths paths = _connection.Paths;
-        (IReadOnlyList<MapLibraryEntry> entries, IReadOnlyList<WaitingMap> waiting) = await Task.Run(() =>
-            (MapLibrary.Scan(paths), MapLibrary.ScanCustomMaps(CustomMapsDir, paths.MapsDir)));
+        IReadOnlyList<MapLibraryEntry> entries = await Task.Run(() => MapLibrary.Scan(paths));
 
         _allRows = entries.Select(entry => new MapLibraryRowViewModel(entry, _thumbnails.Get(entry.Name))).ToList();
-        WaitingMaps.Clear();
-        foreach (WaitingMap map in waiting) {
-            WaitingMaps.Add(map);
-        }
-        UpdateCounts();
+        int withoutPicture = _allRows.Count(row => !row.HasPicture);
+        int inNoList = _allRows.Count(row => row.IsInNoMode);
+        Summary = $"{_allRows.Count} maps · {inNoList} in no map list · {withoutPicture} without picture";
         ApplyFilter();
     }
 
@@ -232,71 +144,6 @@ public sealed partial class MapsViewModel : ObservableObject, IScreen {
         }
         await _connection.RunAsync($"nextlevel {row.Name}");
         _connection.NextMap = row.Name;
-    }
-
-    /// <summary>
-    /// One map after the other on the UI thread: WPF renders there, and the
-    /// .bsp reading in between runs in the background.
-    /// </summary>
-    [RelayCommand]
-    private async Task GenerateThumbnails() {
-        if (IsGenerating) {
-            return;
-        }
-        IsGenerating = true;
-        try {
-            Color Read(string key) => (Color)Application.Current.FindResource(key);
-            var generator = new ThumbnailGenerator(_connection.Paths, Read("ViewportBackgroundColor"), Read("WireLowColor"), Read("WireHighColor"));
-            List<MapLibraryRowViewModel> missing = _allRows.Where(row => !row.HasPicture).ToList();
-            int failed = 0;
-            for (int index = 0; index < missing.Count; index++) {
-                MapLibraryRowViewModel row = missing[index];
-                GenerateProgress = $"Rendering {index + 1} of {missing.Count}: {row.Name}";
-                if (await generator.GenerateAsync(row.Name)) {
-                    row.Thumbnail = _thumbnails.Get(row.Name);
-                } else {
-                    failed++;
-                }
-            }
-            GenerateProgress = failed == 0 ? $"{missing.Count} pictures rendered" : $"{missing.Count - failed} pictures rendered, {failed} maps could not be read";
-            UpdateCounts();
-        } finally {
-            IsGenerating = false;
-        }
-    }
-
-    [RelayCommand]
-    private void QueueMissingNavs() {
-        _queueMissingNavs();
-    }
-
-    /// <summary>Map pack, market maps and custom-maps again, right here with the log in the activity card.</summary>
-    [RelayCommand]
-    public async Task UpdateMaps() {
-        await _install.UpdateMaps();
-        foreach (MapLibraryRowViewModel row in _allRows) {
-            MapThumbnails.Forget(row.Name);
-        }
-        await AfterMapsChangedAsync();
-    }
-
-    /// <summary>After an update, install or remove: the table, the counts and the market badges follow.</summary>
-    private async Task AfterMapsChangedAsync() {
-        await RefreshAsync();
-        Market.RefreshInstalledState();
-    }
-
-    [RelayCommand]
-    private void OpenCustomMapsFolder() {
-        Directory.CreateDirectory(CustomMapsDir);
-        Process.Start(new ProcessStartInfo { FileName = CustomMapsDir, UseShellExecute = true });
-    }
-
-    private void UpdateCounts() {
-        MissingPictureCount = _allRows.Count(row => !row.HasPicture);
-        MissingNavCount = _allRows.Count(row => !row.HasNav && !row.IsInNoMode);
-        string waitingText = WaitingMaps.Count == 0 ? "" : $" · {WaitingMaps.Count} waiting in custom-maps";
-        Summary = $"{_allRows.Count} maps · {MissingNavCount} without navigation · {MissingPictureCount} without picture{waitingText}";
     }
 
     private void ApplyFilter() {

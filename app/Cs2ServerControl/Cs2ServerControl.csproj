@@ -44,10 +44,12 @@
     <!-- The .NET (Core) build of HelixToolkit.Wpf.SharpDX 2.x: same API and namespace,
          the HelixToolkit.Wpf.SharpDX package itself only ships a .NET Framework build. -->
     <PackageReference Include="HelixToolkit.SharpDX.Core.Wpf" Version="2.27.3" />
-    <!-- Reads the RAR and 7z map archives, which tar.exe in Windows mostly fails on. -->
+    <!-- Reads the zip archives of Metamod and CounterStrikeSharp, and RAR or 7z should a mirror ship one. -->
     <PackageReference Include="SharpCompress" Version="0.50.5" />
-    <!-- Reads the hlds.exe command lines, to tell the game server from the nav build helper. -->
-    <PackageReference Include="System.Management" Version="10.0.0" />
+    <!-- Reads CS2 map packages (.vpk) and their compiled resources: world collision for the Live Map, weapon icons. MIT. -->
+    <PackageReference Include="ValveResourceFormat" Version="20.1.7467" />
+    <!-- Turns the SVG kill feed icons from the game files into WPF drawings. BSD-3-Clause. -->
+    <PackageReference Include="SharpVectors.Wpf" Version="1.8.5" />
   </ItemGroup>
 
   <!-- A publish never ships an exe whose tests fail. The tests build into

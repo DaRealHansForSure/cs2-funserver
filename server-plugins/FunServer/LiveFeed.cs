@@ -1,3 +1,4 @@
+using System.Drawing;
 using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
@@ -77,10 +78,26 @@ public sealed partial class FunServerPlugin {
 
         // The separators must never show up inside a field.
         string name = player.PlayerName.Replace('|', '/').Replace('\n', '/').Replace('\r', '/');
-        // No hook and no glow yet: hooking 0, hook point 0 0 0, glow -1 -1 -1.
+        // No hook yet: hooking 0, hook point 0 0 0.
         string line = string.Create(CultureInfo.InvariantCulture,
-            $"\nP|{player.UserId ?? 0}|{name}|{TeamName(player.TeamNum)}|{(isAlive ? 1 : 0)}|{(player.IsBot ? 1 : 0)}|{health}|{Round(origin?.X)}|{Round(origin?.Y)}|{Round(origin?.Z)}|{Round(yaw)}|{stats?.Kills ?? 0}|{stats?.Deaths ?? 0}|{weapon}|0|0|0|0|-1|-1|-1");
+            $"\nP|{player.UserId ?? 0}|{name}|{TeamName(player.TeamNum)}|{(isAlive ? 1 : 0)}|{(player.IsBot ? 1 : 0)}|{health}|{Round(origin?.X)}|{Round(origin?.Y)}|{Round(origin?.Z)}|{Round(yaw)}|{stats?.Kills ?? 0}|{stats?.Deaths ?? 0}|{weapon}|0|0|0|0|{GlowField(isAlive ? pawn : null)}");
         packet.Append(line);
+    }
+
+    /// <summary>
+    /// The tint fun_glow set, read back from the pawn, so the Live Map shows
+    /// what the players really see. White is the untinted default: -1 -1 -1.
+    /// </summary>
+    private static string GlowField(CCSPlayerPawn? pawn) {
+        if (pawn == null) {
+            return "-1|-1|-1";
+        }
+        Color render = pawn.Render;
+        bool isUntinted = render.R == 255 && render.G == 255 && render.B == 255;
+        if (isUntinted) {
+            return "-1|-1|-1";
+        }
+        return string.Create(CultureInfo.InvariantCulture, $"{render.R}|{render.G}|{render.B}");
     }
 
     private HookResult OnPlayerDeath(EventPlayerDeath death, GameEventInfo info) {

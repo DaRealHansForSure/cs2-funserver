@@ -1,6 +1,5 @@
 using System.Globalization;
 using System.IO;
-using System.Text;
 using System.Text.RegularExpressions;
 
 namespace Cs2ServerControl.Services;
@@ -8,30 +7,26 @@ namespace Cs2ServerControl.Services;
 public sealed record MapStat(string Label, string Value);
 
 /// <summary>
-/// Facts about one map for the details dialog: what the .bsp says (size,
-/// spawns, objective), the files next to it, and how it was played according
-/// to the server's game logs (one log file per map start).
+/// Facts about one map for the details dialog: its modes, the map package,
+/// its size from the geometry, and how it was played according to the
+/// server's game logs (one log file per map start).
 /// </summary>
 public static partial class MapDetailsReader {
-    private const int EntitiesLump = 0;
     private const int MaxLogFiles = 500;
     private const double MetersPerUnit = 0.0254;
 
-    public static Task<IReadOnlyList<MapStat>> ReadAsync(PackagePaths paths, string mapName, BspWireframe? wireframe) {
+    public static Task<IReadOnlyList<MapStat>> ReadAsync(PackagePaths paths, string mapName, MapWireframe? wireframe) {
         return Task.Run(() => Read(paths, mapName, wireframe));
     }
 
-    private static IReadOnlyList<MapStat> Read(PackagePaths paths, string mapName, BspWireframe? wireframe) {
+    private static IReadOnlyList<MapStat> Read(PackagePaths paths, string mapName, MapWireframe? wireframe) {
         var stats = new List<MapStat>();
-        string bspFile = paths.MapFile(mapName);
+        string mapFile = paths.MapFile(mapName);
 
         stats.Add(new MapStat("Modes", ModesOf(paths, mapName)));
 
-        if (File.Exists(bspFile)) {
-            IReadOnlyDictionary<string, int> entities = ReadEntityCounts(bspFile);
-            stats.Add(new MapStat("Objective", Objective(entities)));
-            stats.Add(new MapStat("Spawns", $"{Count(entities, "info_player_deathmatch")} T, {Count(entities, "info_player_start")} CT"));
-            stats.Add(new MapStat("File", $"{new FileInfo(bspFile).Length / 1024.0 / 1024.0:0.0} MB"));
+        if (File.Exists(mapFile)) {
+            stats.Add(new MapStat("File", $"{new FileInfo(mapFile).Length / 1024.0 / 1024.0:0.0} MB"));
         }
 
         if (wireframe != null) {
@@ -41,9 +36,6 @@ public static partial class MapDetailsReader {
             stats.Add(new MapStat("Size", string.Create(CultureInfo.InvariantCulture,
                 $"{width:0} x {depth:0} x {height:0} units ({width * MetersPerUnit:0} x {depth * MetersPerUnit:0} m)")));
         }
-
-        string navFile = paths.NavFile(mapName);
-        stats.Add(new MapStat("Bot navigation", NavText(navFile)));
 
         AddPlayStats(paths, mapName, stats);
         return stats;
@@ -55,64 +47,6 @@ public static partial class MapDetailsReader {
             .Select(mode => mode.Title)
             .ToList();
         return modes.Count == 0 ? "-" : string.Join(", ", modes);
-    }
-
-    private static string Objective(IReadOnlyDictionary<string, int> entities) {
-        if (Count(entities, "func_bomb_target") + Count(entities, "info_bomb_target") > 0) {
-            return "Bomb defusal";
-        }
-        if (Count(entities, "hostage_entity") > 0) {
-            return $"Hostage rescue ({Count(entities, "hostage_entity")} hostages)";
-        }
-        if (Count(entities, "func_vip_safetyzone") > 0) {
-            return "VIP escort";
-        }
-        if (Count(entities, "func_escapezone") > 0) {
-            return "Escape";
-        }
-        return "None (fun map)";
-    }
-
-    private static string NavText(string navFile) {
-        if (!File.Exists(navFile)) {
-            return "Missing, zBot builds it on the first load";
-        }
-        try {
-            NavMesh mesh = NavMeshReader.Load(navFile);
-            return $"{mesh.Areas.Count} areas, {mesh.HidingSpots.Count} hiding spots";
-        } catch (Exception exception) when (exception is IOException or InvalidDataException) {
-            return "Present, unreadable";
-        }
-    }
-
-    private static int Count(IReadOnlyDictionary<string, int> entities, string className) {
-        return entities.TryGetValue(className, out int count) ? count : 0;
-    }
-
-    /// <summary>Counts entities per classname in the .bsp entity lump (plain text key/value blocks).</summary>
-    internal static IReadOnlyDictionary<string, int> ReadEntityCounts(string bspFile) {
-        var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-        try {
-            using var stream = File.OpenRead(bspFile);
-            using var reader = new BinaryReader(stream);
-            reader.ReadInt32();
-            stream.Seek(4 + EntitiesLump * 8, SeekOrigin.Begin);
-            int offset = reader.ReadInt32();
-            int length = reader.ReadInt32();
-            if (offset <= 0 || length <= 0 || offset + (long)length > stream.Length) {
-                return counts;
-            }
-
-            stream.Seek(offset, SeekOrigin.Begin);
-            string text = Encoding.ASCII.GetString(reader.ReadBytes(length));
-            foreach (Match match in ClassNamePattern().Matches(text)) {
-                string className = match.Groups["name"].Value;
-                counts[className] = Count(counts, className) + 1;
-            }
-        } catch (IOException) {
-            // A map that is being replaced right now simply shows fewer facts.
-        }
-        return counts;
     }
 
     private static void AddPlayStats(PackagePaths paths, string mapName, List<MapStat> stats) {
@@ -189,9 +123,6 @@ public static partial class MapDetailsReader {
         }
         return false;
     }
-
-    [GeneratedRegex("\"classname\"\\s+\"(?<name>[^\"]+)\"")]
-    private static partial Regex ClassNamePattern();
 
     [GeneratedRegex("Loading map \"(?<map>[^\"]+)\"")]
     private static partial Regex LoadingMapPattern();

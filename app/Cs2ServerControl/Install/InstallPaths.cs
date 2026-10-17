@@ -21,14 +21,10 @@ internal sealed class InstallPaths {
     public string OverlayDir => Path.Combine(Package.RootDir, "server-files", "csgo");
     // Our built plugins, one folder per plugin, copied into CounterStrikeSharp's plugins folder.
     public string PluginsSourceDir => Path.Combine(Package.RootDir, "plugins");
-    public string OwnMapsDir => Path.Combine(Package.RootDir, "custom-maps");
     public string DownloadDir => Path.Combine(Package.ToolsDir, "downloads");
     public string WorkDir => Path.Combine(Package.ToolsDir, "work");
     public string SteamCmdDir => Path.Combine(Package.ToolsDir, "steamcmd");
     public string SteamCmdExe => Path.Combine(SteamCmdDir, "steamcmd.exe");
-    public string MapListFile => Path.Combine(Package.ToolsDir, "maps.csv");
-    // Maps installed from the market; created at runtime, not part of the package.
-    public string MarketListFile => Path.Combine(Package.ToolsDir, "market.csv");
 
     public string GameInfoFile => Path.Combine(GameDir, "gameinfo.gi");
     public string AddonsDir => Package.AddonsDir;

@@ -17,44 +17,33 @@ public sealed record FirewallRuleState(string Name, string Protocol, int Port, b
 /// </summary>
 public sealed class ServerProcess {
     public const int GamePort = 27015;
-    public const int FastDownloadPort = 27080;
     public const int DefaultMaxPlayers = 20;
     public const int MaxPlayersLimit = 32;
     public const int TvPort = 27020;
 
-    // Below 10 seconds HLTV turns its automatic camera director off, and on
-    // a LAN there is nobody to cheat with a longer delay.
-    private const int TvDelaySeconds = 10;
-
     private static readonly TimeSpan QuitTimeout = TimeSpan.FromSeconds(10);
 
-    private static readonly (string Name, string Protocol, int Port)[] FirewallRules = [
-        ("CS16 LAN Server (UDP)", "UDP", GamePort),
-        ("CS16 LAN Server (TCP)", "TCP", GamePort),
-        ("CS16 LAN Fast-Download", "TCP", FastDownloadPort),
-        ("CS16 LAN TV (HLTV)", "UDP", TvPort),
+    // CS2 players and CSTV only talk UDP. RCON is TCP on the game port, but
+    // only this window uses it, so that port stays closed to the LAN. Maps
+    // come from Steam, there is no download server.
+    internal static readonly (string Name, string Protocol, int Port)[] FirewallRules = [
+        ("CS2 LAN Server (UDP)", "UDP", GamePort),
+        ("CS2 LAN TV (CSTV)", "UDP", TvPort),
     ];
 
     private readonly PackagePaths _paths;
-    private Process? _fastDownload;
-    private Process? _tv;
-
-    // The nav build helper is the same hlds.exe, so the path alone does not
-    // tell which one is the game server. The command line does, but reading
-    // it goes through WMI, so every process id is judged only once.
-    private readonly Dictionary<int, bool> _isGameServerById = [];
 
     public ServerProcess(PackagePaths paths) {
         _paths = paths;
     }
 
-    public bool IsRunning => FindHlds() != null;
+    public bool IsRunning => FindServer() != null;
 
-    /// <summary>When hlds.exe was started, also for a server started outside this window.</summary>
+    /// <summary>When cs2.exe was started, also for a server started outside this window.</summary>
     public DateTime? StartedAt {
         get {
             try {
-                return FindHlds()?.StartTime;
+                return FindServer()?.StartTime;
             } catch (Exception exception) when (exception is InvalidOperationException or Win32Exception) {
                 return null;
             }
@@ -128,23 +117,19 @@ public sealed class ServerProcess {
         GameMode mode = GameModes.Find(modeId) ?? GameModes.All[0];
         string arguments = BuildArguments(mode, startMap, maxPlayers, lanAddress, rconPassword);
 
-        Process? server = Process.Start(new ProcessStartInfo {
-            FileName = _paths.Cs2Exe,
-            Arguments = arguments,
-            WorkingDirectory = Path.GetDirectoryName(_paths.Cs2Exe)!,
-            WindowStyle = ProcessWindowStyle.Minimized,
-            UseShellExecute = true,
-        });
-        if (server != null) {
-            RememberProcess(server.Id, isGameServer: true);
-        }
+        // cs2.exe -console opens a console window that takes the focus, even
+        // minimized; the host plays on this PC. The window's console tab
+        // shows the same output from console.log.
+        HiddenDesktopLauncher.Start(_paths.Cs2Exe, arguments, Path.GetDirectoryName(_paths.Cs2Exe)!).Dispose();
     }
 
     /// <summary>
     /// The cs2.exe command line. -usercon turns on RCON (TCP on the game port),
     /// sv_lan keeps it a LAN server that needs no Steam game server token.
-    /// fun/local.cfg runs once here; on every map the mode plugin runs it again
-    /// after the mode config.
+    /// An empty server hibernates and then runs no frames at all, so the
+    /// plugin would neither run the mode configs nor send the live feed
+    /// while only bots play. fun/local.cfg runs once here; on every map the
+    /// mode plugin runs it again after the mode config.
     /// </summary>
     internal static string BuildArguments(GameMode mode, string startMap, int maxPlayers, IPAddress lanAddress, string rconPassword) {
         return string.Join(' ',
@@ -153,6 +138,7 @@ public sealed class ServerProcess {
             $"-ip {lanAddress}",
             $"-maxplayers {maxPlayers}",
             "+sv_lan 1",
+            "+sv_hibernate_when_empty 0",
             $"+game_type {mode.GameType}",
             $"+game_mode {mode.GameModeNumber}",
             $"+rcon_password {rconPassword}",
@@ -169,95 +155,16 @@ public sealed class ServerProcess {
         File.WriteAllText(_paths.ActiveModeFile, modeId, System.Text.Encoding.ASCII);
     }
 
-    /// <summary>
-    /// The fast download server is this same exe again, without a window. It
-    /// ends by itself when hlds.exe ends, so it neither dies with the window
-    /// nor outlives the game server.
-    /// </summary>
-    public void StartFastDownload(int hldsProcessId) {
-        string? exe = Environment.ProcessPath;
-        if (exe == null || IsFastDownloadRunning()) {
-            return;
-        }
-
-        _fastDownload = Process.Start(new ProcessStartInfo {
-            FileName = exe,
-            Arguments = $"--fastdl --root \"{_paths.GameDir}\" --port {FastDownloadPort} --watch-pid {hldsProcessId}",
-            UseShellExecute = false,
-            CreateNoWindow = true,
-        });
-    }
-
-    /// <summary>For a server the window attaches to: starts the download server if nobody serves the port.</summary>
-    public void EnsureFastDownload() {
-        Process? hlds = FindHlds();
-        if (hlds != null) {
-            StartFastDownload(hlds.Id);
-        }
-    }
-
-    /// <summary>Another instance may already serve the port, e.g. after the window was reopened.</summary>
-    private static bool IsFastDownloadRunning() {
-        IPEndPoint[] listeners = System.Net.NetworkInformation.IPGlobalProperties.GetIPGlobalProperties().GetActiveTcpListeners();
-        return listeners.Any(listener => listener.Port == FastDownloadPort);
-    }
-
-    /// <summary>Waits for hlds.exe to end after "quit", then kills what is left.</summary>
+    /// <summary>Waits for cs2.exe to end after "quit", then kills what is left.</summary>
     public async Task WaitForExitOrKillAsync() {
-        Process? hlds = FindHlds();
-        if (hlds != null) {
+        Process? server = FindServer();
+        if (server != null) {
             using var timeout = new CancellationTokenSource(QuitTimeout);
             try {
-                await hlds.WaitForExitAsync(timeout.Token);
+                await server.WaitForExitAsync(timeout.Token);
             } catch (OperationCanceledException) {
-                TryKill(hlds);
+                TryKill(server);
             }
-        }
-        StopFastDownload();
-        StopTv();
-    }
-
-    /// <summary>
-    /// The HLTV proxy for a TV or projector: it joins the game server as one
-    /// spectator slot, and the TV PC connects to it on port 27020.
-    /// </summary>
-    public void StartTv(IPAddress lanAddress) {
-        if (IsTvRunning) {
-            return;
-        }
-
-        string hltvExe = Path.Combine(_paths.ServerDir, "hltv.exe");
-        if (!File.Exists(hltvExe)) {
-            throw new InvalidOperationException("hltv.exe is missing. Run Install or repair on the Install screen.");
-        }
-
-        _tv = Process.Start(new ProcessStartInfo {
-            FileName = hltvExe,
-            Arguments = string.Join(' ',
-                $"-port {TvPort}",
-                $"+connect {lanAddress}:{GamePort}",
-                $"+delay {TvDelaySeconds}",
-                "+maxrate 10000",
-                "+name LAN-TV"),
-            WorkingDirectory = _paths.ServerDir,
-            UseShellExecute = true,
-            WindowStyle = ProcessWindowStyle.Minimized,
-        });
-    }
-
-    public void StopTv() {
-        if (_tv != null) {
-            TryKill(_tv);
-            _tv = null;
-        }
-    }
-
-    public bool IsTvRunning => _tv != null && !_tv.HasExited;
-
-    public void StopFastDownload() {
-        if (_fastDownload != null) {
-            TryKill(_fastDownload);
-            _fastDownload = null;
         }
     }
 
@@ -347,22 +254,17 @@ public sealed class ServerProcess {
         return new LocalSettings(_paths.LocalConfigFile).Get("rcon_password");
     }
 
-    /// <summary>The game server: an hlds.exe of this package that is not the nav build helper.</summary>
-    private Process? FindHlds() {
-        Process[] running = Process.GetProcessesByName("cs2");
-        lock (_isGameServerById) {
-            ForgetEndedProcesses(running);
-        }
-
-        foreach (Process process in running) {
-            if (IsOurHlds(process) && IsGameServer(process.Id)) {
+    /// <summary>The game server: a cs2.exe from this package's server folder, not the owner's Steam CS2.</summary>
+    private Process? FindServer() {
+        foreach (Process process in Process.GetProcessesByName("cs2")) {
+            if (IsOurServer(process)) {
                 return process;
             }
         }
         return null;
     }
 
-    private bool IsOurHlds(Process process) {
+    private bool IsOurServer(Process process) {
         try {
             string? path = process.MainModule?.FileName;
             return path != null && string.Equals(Path.GetFullPath(path), Path.GetFullPath(_paths.Cs2Exe), StringComparison.OrdinalIgnoreCase);
@@ -370,74 +272,6 @@ public sealed class ServerProcess {
             // A process that ended or belongs to another user is not ours.
             return false;
         }
-    }
-
-    private bool IsGameServer(int processId) {
-        lock (_isGameServerById) {
-            if (_isGameServerById.TryGetValue(processId, out bool known)) {
-                return known;
-            }
-        }
-
-        string? commandLine = ReadCommandLine(processId);
-        if (commandLine == null) {
-            // Ended in between, or WMI is unavailable. Judge it again next time
-            // instead of remembering a guess.
-            return true;
-        }
-        bool isGameServer = !IsNavHelperCommandLine(commandLine);
-        RememberProcess(processId, isGameServer);
-        return isGameServer;
-    }
-
-    /// <summary>
-    /// Ends nav build helpers of this package. Only the window starts them, so
-    /// one that runs while the window opens or closes is left over: it sits
-    /// on the invisible desktop and would run forever otherwise.
-    /// </summary>
-    public void StopNavHelpers() {
-        foreach (Process process in Process.GetProcessesByName("cs2")) {
-            if (!IsOurHlds(process)) {
-                continue;
-            }
-            string? commandLine = ReadCommandLine(process.Id);
-            if (commandLine != null && IsNavHelperCommandLine(commandLine)) {
-                TryKill(process);
-            }
-        }
-    }
-
-    internal static bool IsNavHelperCommandLine(string commandLine) {
-        return commandLine.Contains($"-port {NavBuilder.HelperPort}", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private void RememberProcess(int processId, bool isGameServer) {
-        lock (_isGameServerById) {
-            _isGameServerById[processId] = isGameServer;
-        }
-    }
-
-    private void ForgetEndedProcesses(Process[] running) {
-        // Windows reuses process ids, an old verdict must not stick to a new process.
-        var runningIds = running.Select(process => process.Id).ToHashSet();
-        foreach (int processId in _isGameServerById.Keys.Where(id => !runningIds.Contains(id)).ToList()) {
-            _isGameServerById.Remove(processId);
-        }
-    }
-
-    private static string? ReadCommandLine(int processId) {
-        try {
-            using var searcher = new System.Management.ManagementObjectSearcher(
-                $"SELECT CommandLine FROM Win32_Process WHERE ProcessId = {processId}");
-            foreach (System.Management.ManagementBaseObject process in searcher.Get()) {
-                using (process) {
-                    return process["CommandLine"] as string;
-                }
-            }
-        } catch (Exception exception) when (exception is System.Management.ManagementException or System.Runtime.InteropServices.COMException or UnauthorizedAccessException) {
-            // Falls through to "unknown".
-        }
-        return null;
     }
 
     private static void TryKill(Process process) {

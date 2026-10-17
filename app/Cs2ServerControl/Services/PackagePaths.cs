@@ -24,11 +24,10 @@ public sealed class PackagePaths {
     public string ConfigDir => Path.Combine(GameDir, "cfg");
     public string AddonsDir => Path.Combine(GameDir, "addons");
     public string PreviewsDir => Path.Combine(ToolsDir, "previews");
-    // Rendered by the Maps screen; a real screenshot in PreviewsDir always wins.
-    public string GeneratedPreviewsDir => Path.Combine(PreviewsDir, "auto");
     public string Cs2Exe => Path.Combine(ServerDir, "game", "bin", "win64", "cs2.exe");
-    // -condebug writes the console into the game folder (not verified on a real server yet).
-    public string ConsoleLogFile => Path.Combine(GameDir, "console.log");
+    // -condebug writes into the first search path of gameinfo.gi, and the
+    // installer puts Metamod's folder there, above csgo itself.
+    public string ConsoleLogFile => Path.Combine(AddonsDir, "metamod", "console.log");
 
     // The package's own configs live in cfg\fun\, so they never mix with Valve's.
     public string FunConfigDir => Path.Combine(ConfigDir, "fun");
@@ -62,11 +61,6 @@ public sealed class PackagePaths {
     /// <summary>A Valve map: game\csgo\maps\&lt;name&gt;.vpk. Workshop maps live in the Steam workshop folder instead.</summary>
     public string MapFile(string mapName) {
         return Path.Combine(MapsDir, mapName + ".vpk");
-    }
-
-    /// <summary>A loose nav mesh next to the map; most CS2 maps carry theirs inside the .vpk instead.</summary>
-    public string NavFile(string mapName) {
-        return Path.Combine(MapsDir, mapName + ".nav");
     }
 
     // Radar images; Valve's are packed into the game's .vpk files, loose ones only for own maps.

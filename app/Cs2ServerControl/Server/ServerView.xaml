@@ -97,7 +97,7 @@
                     <Border Style="{StaticResource Card}" DataContext="{Binding Settings}">
                         <StackPanel>
                             <DockPanel Margin="0,0,0,12">
-                                <TextBlock DockPanel.Dock="Right" Text="Saved in cstrike\local.cfg on Apply" Style="{StaticResource HintText}" />
+                                <TextBlock DockPanel.Dock="Right" Text="Saved in cfg\fun\local.cfg on Apply" Style="{StaticResource HintText}" />
                                 <TextBlock Text="Settings" Style="{StaticResource CardTitleText}" />
                             </DockPanel>
                             <Grid>
@@ -342,7 +342,7 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- TV: an HLTV proxy for a projector, also part of the draft. -->
+                    <!-- TV: CS2's built-in CSTV for a projector, also part of the draft. -->
                     <Border Style="{StaticResource Card}" Margin="0,16,0,0" DataContext="{Binding Settings}">
                         <StackPanel>
                             <DockPanel Margin="0,0,0,12">
@@ -351,8 +351,8 @@
                                         <Style TargetType="TextBlock" BasedOn="{StaticResource HintText}">
                                             <Setter Property="Text" Value="Off" />
                                             <Style.Triggers>
-                                                <DataTrigger Binding="{Binding DataContext.Connection.IsTvRunning, RelativeSource={RelativeSource AncestorType=UserControl}}" Value="True">
-                                                    <Setter Property="Text" Value="Running" />
+                                                <DataTrigger Binding="{Binding IsTvOn}" Value="True">
+                                                    <Setter Property="Text" Value="On" />
                                                     <Setter Property="Foreground" Value="{StaticResource SuccessPillText}" />
                                                 </DataTrigger>
                                             </Style.Triggers>
@@ -361,9 +361,8 @@
                                 </TextBlock>
                                 <TextBlock Text="TV" Style="{StaticResource CardTitleText}" />
                             </DockPanel>
-                            <CheckBox Style="{StaticResource AccentCheckBox}" IsChecked="{Binding IsTvWanted}" Margin="0,0,0,8"
-                                      IsEnabled="{Binding DataContext.IsRunning, RelativeSource={RelativeSource AncestorType=UserControl}}">
-                                <TextBlock>Broadcast to a TV or projector <Run Text="HLTV, 10 s delay, one player slot" FontSize="{StaticResource FontSizeSmall}"
+                            <CheckBox Style="{StaticResource AccentCheckBox}" IsChecked="{Binding IsTvWanted}" Margin="0,0,0,8">
+                                <TextBlock>Broadcast to a TV or projector <Run Text="CSTV, 10 s delay, on port 27020 from the next map change" FontSize="{StaticResource FontSizeSmall}"
                                            Foreground="{StaticResource TextTertiary}" /></TextBlock>
                             </CheckBox>
                             <TextBlock Text="{Binding TvAddressText}" FontFamily="{StaticResource MonoFont}" FontSize="{StaticResource FontSizeSmall}"

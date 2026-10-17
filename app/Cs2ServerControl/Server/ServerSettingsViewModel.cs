@@ -8,9 +8,9 @@ namespace Cs2ServerControl.Server;
 
 /// <summary>
 /// Server settings of this PC (name, join password, max players, fun rounds,
-/// hook, TV). Part of the Server screen's draft: changes wait for Apply.
-/// Cvars go into server\cstrike\local.cfg, which fun_modes runs after the
-/// mode configs on every map, and to the running server over RCON.
+/// hook, CSTV). Part of the Server screen's draft: changes wait for Apply.
+/// Cvars go into cfg\fun\local.cfg, which the FunServer plugin runs after
+/// the mode configs on every map, and to the running server over RCON.
 /// </summary>
 public sealed partial class ServerSettingsViewModel : ObservableObject {
     private const string DefaultServerName = "LAN Fun Server";
@@ -47,6 +47,10 @@ public sealed partial class ServerSettingsViewModel : ObservableObject {
     [ObservableProperty]
     private bool _isTvWanted;
 
+    /// <summary>CSTV as saved in local.cfg, for the On/Off label.</summary>
+    [ObservableProperty]
+    private bool _isTvOn;
+
     [ObservableProperty]
     private bool _isChanged;
 
@@ -61,7 +65,7 @@ public sealed partial class ServerSettingsViewModel : ObservableObject {
 
     public string TvAddressText => $"On the TV PC: connect {_connection.LanAddress}:{ServerProcess.TvPort}";
 
-    /// <summary>Max players only takes effect when hlds.exe starts, so say so while it runs.</summary>
+    /// <summary>Max players only takes effect when cs2.exe starts, so say so while it runs.</summary>
     public bool IsMaxPlayersPending => _connection.IsRunning && ParseMaxPlayers() != _connection.MaxPlayers;
 
     public void Load() {
@@ -75,7 +79,8 @@ public sealed partial class ServerSettingsViewModel : ObservableObject {
             HookSpeedText = settings.Get("fun_hook_speed") ?? "750";
             HookAdminOnly = settings.Get("fun_hook_admin_only") == "1";
             MaxPlayersText = _connection.Settings.MaxPlayers.ToString(CultureInfo.InvariantCulture);
-            IsTvWanted = _connection.IsTvRunning;
+            IsTvWanted = settings.Get("tv_enable") == "1";
+            IsTvOn = IsTvWanted;
         } finally {
             _isLoading = false;
         }
@@ -99,6 +104,9 @@ public sealed partial class ServerSettingsViewModel : ObservableObject {
             new("fun_rounds_every", funRoundsEvery.ToString(CultureInfo.InvariantCulture)),
             new("fun_hook_speed", hookSpeed.ToString(CultureInfo.InvariantCulture)),
             new("fun_hook_admin_only", HookAdminOnly ? "1" : "0"),
+            // CS2 starts CSTV only while a map loads, so a running server
+            // broadcasts from the next map on.
+            new("tv_enable", IsTvWanted ? "1" : "0"),
         };
 
         try {
@@ -118,8 +126,8 @@ public sealed partial class ServerSettingsViewModel : ObservableObject {
         if (_connection.IsRunning) {
             // Quotes are stripped like in local.cfg; the engine has no escaping.
             await _connection.QueryAsync(string.Join(";", cvars.Select(cvar => $"{cvar.Key} \"{cvar.Value.Replace("\"", "")}\"")));
-            ApplyTv();
         }
+        IsTvOn = IsTvWanted;
 
         Error = null;
         IsChanged = false;
@@ -134,19 +142,6 @@ public sealed partial class ServerSettingsViewModel : ObservableObject {
             or nameof(IsTvWanted);
         if (isSetting && !_isLoading) {
             IsChanged = true;
-        }
-    }
-
-    private void ApplyTv() {
-        try {
-            if (IsTvWanted) {
-                _connection.Process.StartTv(_connection.LanAddress);
-            } else {
-                _connection.Process.StopTv();
-            }
-            _connection.IsTvRunning = _connection.Process.IsTvRunning;
-        } catch (Exception exception) when (exception is InvalidOperationException or Win32Exception) {
-            Error = exception.Message;
         }
     }
 
@@ -177,12 +172,6 @@ public sealed partial class ServerSettingsViewModel : ObservableObject {
     private void OnConnectionChanged(object? sender, PropertyChangedEventArgs e) {
         if (e.PropertyName is nameof(ServerConnection.IsRunning) or nameof(ServerConnection.MaxPlayers)) {
             OnPropertyChanged(nameof(IsMaxPlayersPending));
-        }
-        // The TV follows the server: when it stops, the TV is gone too.
-        if (e.PropertyName == nameof(ServerConnection.IsTvRunning) && !IsChanged) {
-            _isLoading = true;
-            IsTvWanted = _connection.IsTvRunning;
-            _isLoading = false;
         }
     }
 }
