@@ -23,9 +23,7 @@ public sealed class AppSettings {
     public bool ShowNames { get; set; } = true;
     public bool ShowTrails { get; set; } = true;
     public bool ShowWeapons { get; set; } = true;
-    public bool MarketHidesInstalled { get; set; }
     public bool ShowShots { get; set; } = true;
-    public bool ShowNavMesh { get; set; }
     public int MaxPlayers { get; set; } = ServerProcess.DefaultMaxPlayers;
     public bool FirewallAsked { get; set; }
     /// <summary>The LAN address the server binds to; empty picks the adapter with the default gateway.</summary>

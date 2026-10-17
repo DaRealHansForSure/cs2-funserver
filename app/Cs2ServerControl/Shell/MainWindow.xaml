@@ -141,28 +141,6 @@
             </Border>
         </DataTemplate>
 
-        <!-- Admin account, asked once by the installer. -->
-        <DataTemplate DataType="{x:Type install:AdminAccountModal}">
-            <Border Style="{StaticResource Card}" Width="{StaticResource ConfirmWidth}">
-                <StackPanel>
-                    <TextBlock Text="Admin account" Style="{StaticResource CardTitleText}" Margin="0,0,0,10" />
-                    <TextBlock Text="Your player name and a password for the admin menus in game (amx_funmode, the fun menu)."
-                               Style="{StaticResource HintText}" Margin="0,0,0,12" />
-                    <TextBlock Text="Player name" Style="{StaticResource LabelText}" />
-                    <TextBox Style="{StaticResource TextInput}" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,10"
-                             AutomationProperties.Name="Player name" />
-                    <TextBlock Text="Password" Style="{StaticResource LabelText}" />
-                    <TextBox Style="{StaticResource TextInput}" Text="{Binding Password, UpdateSourceTrigger=PropertyChanged}"
-                             AutomationProperties.Name="Admin password" />
-                    <TextBlock Text="{Binding Error}" Style="{StaticResource HintText}" Foreground="{StaticResource Warning}" Margin="0,8,0,0" />
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
-                        <Button Content="Skip" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0" Command="{Binding CloseCommand}" />
-                        <Button Content="Save" Style="{StaticResource PrimaryButton}" Command="{Binding SaveCommand}" IsDefault="True" />
-                    </StackPanel>
-                </StackPanel>
-            </Border>
-        </DataTemplate>
-
         <DataTemplate DataType="{x:Type server:MapDetailsViewModel}">
             <server:MapDetailsView />
         </DataTemplate>

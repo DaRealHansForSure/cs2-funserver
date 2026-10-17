@@ -10,7 +10,8 @@ public class AppCommandTests {
 
     [Theory]
     [InlineData("--install", AppCommandKind.Install)]
-    [InlineData("--UPDATE-MAPS", AppCommandKind.UpdateMaps)]
+    [InlineData("--START", AppCommandKind.Start)]
+    [InlineData("--update-maps", AppCommandKind.Window)]
     [InlineData("--start", AppCommandKind.Start)]
     [InlineData("--something", AppCommandKind.Window)]
     [InlineData("--fastdl", AppCommandKind.Window)]

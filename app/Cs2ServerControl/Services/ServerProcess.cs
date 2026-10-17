@@ -33,22 +33,17 @@ public sealed class ServerProcess {
 
     private readonly PackagePaths _paths;
 
-    // The nav build helper is the same hlds.exe, so the path alone does not
-    // tell which one is the game server. The command line does, but reading
-    // it goes through WMI, so every process id is judged only once.
-    private readonly Dictionary<int, bool> _isGameServerById = [];
-
     public ServerProcess(PackagePaths paths) {
         _paths = paths;
     }
 
-    public bool IsRunning => FindHlds() != null;
+    public bool IsRunning => FindServer() != null;
 
-    /// <summary>When hlds.exe was started, also for a server started outside this window.</summary>
+    /// <summary>When cs2.exe was started, also for a server started outside this window.</summary>
     public DateTime? StartedAt {
         get {
             try {
-                return FindHlds()?.StartTime;
+                return FindServer()?.StartTime;
             } catch (Exception exception) when (exception is InvalidOperationException or Win32Exception) {
                 return null;
             }
@@ -122,16 +117,10 @@ public sealed class ServerProcess {
         GameMode mode = GameModes.Find(modeId) ?? GameModes.All[0];
         string arguments = BuildArguments(mode, startMap, maxPlayers, lanAddress, rconPassword);
 
-        Process? server = Process.Start(new ProcessStartInfo {
-            FileName = _paths.Cs2Exe,
-            Arguments = arguments,
-            WorkingDirectory = Path.GetDirectoryName(_paths.Cs2Exe)!,
-            WindowStyle = ProcessWindowStyle.Minimized,
-            UseShellExecute = true,
-        });
-        if (server != null) {
-            RememberProcess(server.Id, isGameServer: true);
-        }
+        // cs2.exe -console opens a console window that takes the focus, even
+        // minimized; the host plays on this PC. The window's console tab
+        // shows the same output from console.log.
+        HiddenDesktopLauncher.Start(_paths.Cs2Exe, arguments, Path.GetDirectoryName(_paths.Cs2Exe)!).Dispose();
     }
 
     /// <summary>
@@ -166,15 +155,15 @@ public sealed class ServerProcess {
         File.WriteAllText(_paths.ActiveModeFile, modeId, System.Text.Encoding.ASCII);
     }
 
-    /// <summary>Waits for hlds.exe to end after "quit", then kills what is left.</summary>
+    /// <summary>Waits for cs2.exe to end after "quit", then kills what is left.</summary>
     public async Task WaitForExitOrKillAsync() {
-        Process? hlds = FindHlds();
-        if (hlds != null) {
+        Process? server = FindServer();
+        if (server != null) {
             using var timeout = new CancellationTokenSource(QuitTimeout);
             try {
-                await hlds.WaitForExitAsync(timeout.Token);
+                await server.WaitForExitAsync(timeout.Token);
             } catch (OperationCanceledException) {
-                TryKill(hlds);
+                TryKill(server);
             }
         }
     }
@@ -265,22 +254,17 @@ public sealed class ServerProcess {
         return new LocalSettings(_paths.LocalConfigFile).Get("rcon_password");
     }
 
-    /// <summary>The game server: an hlds.exe of this package that is not the nav build helper.</summary>
-    private Process? FindHlds() {
-        Process[] running = Process.GetProcessesByName("cs2");
-        lock (_isGameServerById) {
-            ForgetEndedProcesses(running);
-        }
-
-        foreach (Process process in running) {
-            if (IsOurHlds(process) && IsGameServer(process.Id)) {
+    /// <summary>The game server: a cs2.exe from this package's server folder, not the owner's Steam CS2.</summary>
+    private Process? FindServer() {
+        foreach (Process process in Process.GetProcessesByName("cs2")) {
+            if (IsOurServer(process)) {
                 return process;
             }
         }
         return null;
     }
 
-    private bool IsOurHlds(Process process) {
+    private bool IsOurServer(Process process) {
         try {
             string? path = process.MainModule?.FileName;
             return path != null && string.Equals(Path.GetFullPath(path), Path.GetFullPath(_paths.Cs2Exe), StringComparison.OrdinalIgnoreCase);
@@ -288,74 +272,6 @@ public sealed class ServerProcess {
             // A process that ended or belongs to another user is not ours.
             return false;
         }
-    }
-
-    private bool IsGameServer(int processId) {
-        lock (_isGameServerById) {
-            if (_isGameServerById.TryGetValue(processId, out bool known)) {
-                return known;
-            }
-        }
-
-        string? commandLine = ReadCommandLine(processId);
-        if (commandLine == null) {
-            // Ended in between, or WMI is unavailable. Judge it again next time
-            // instead of remembering a guess.
-            return true;
-        }
-        bool isGameServer = !IsNavHelperCommandLine(commandLine);
-        RememberProcess(processId, isGameServer);
-        return isGameServer;
-    }
-
-    /// <summary>
-    /// Ends nav build helpers of this package. Only the window starts them, so
-    /// one that runs while the window opens or closes is left over: it sits
-    /// on the invisible desktop and would run forever otherwise.
-    /// </summary>
-    public void StopNavHelpers() {
-        foreach (Process process in Process.GetProcessesByName("cs2")) {
-            if (!IsOurHlds(process)) {
-                continue;
-            }
-            string? commandLine = ReadCommandLine(process.Id);
-            if (commandLine != null && IsNavHelperCommandLine(commandLine)) {
-                TryKill(process);
-            }
-        }
-    }
-
-    internal static bool IsNavHelperCommandLine(string commandLine) {
-        return commandLine.Contains($"-port {NavBuilder.HelperPort}", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private void RememberProcess(int processId, bool isGameServer) {
-        lock (_isGameServerById) {
-            _isGameServerById[processId] = isGameServer;
-        }
-    }
-
-    private void ForgetEndedProcesses(Process[] running) {
-        // Windows reuses process ids, an old verdict must not stick to a new process.
-        var runningIds = running.Select(process => process.Id).ToHashSet();
-        foreach (int processId in _isGameServerById.Keys.Where(id => !runningIds.Contains(id)).ToList()) {
-            _isGameServerById.Remove(processId);
-        }
-    }
-
-    private static string? ReadCommandLine(int processId) {
-        try {
-            using var searcher = new System.Management.ManagementObjectSearcher(
-                $"SELECT CommandLine FROM Win32_Process WHERE ProcessId = {processId}");
-            foreach (System.Management.ManagementBaseObject process in searcher.Get()) {
-                using (process) {
-                    return process["CommandLine"] as string;
-                }
-            }
-        } catch (Exception exception) when (exception is System.Management.ManagementException or System.Runtime.InteropServices.COMException or UnauthorizedAccessException) {
-            // Falls through to "unknown".
-        }
-        return null;
     }
 
     private static void TryKill(Process process) {

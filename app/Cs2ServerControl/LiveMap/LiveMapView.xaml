@@ -63,9 +63,6 @@
                     <ToggleButton Content="Trails" Style="{StaticResource ToolbarToggle}" IsChecked="{Binding ShowTrails, Mode=TwoWay}" Margin="0,0,6,0" />
                     <ToggleButton Content="Shots" Style="{StaticResource ToolbarToggle}" IsChecked="{Binding ShowShots, Mode=TwoWay}" Margin="0,0,6,0"
                                   ToolTip="Bullet paths in the team color; a hit on a player is drawn thicker with a cross" />
-                    <Border Style="{StaticResource VerticalDivider}" Margin="0,0,6,0" />
-                    <ToggleButton Content="Nav mesh" Style="{StaticResource ToolbarToggle}" IsChecked="{Binding ShowNavMesh, Mode=TwoWay}"
-                                  ToolTip="Debug view: zBot walkable areas (violet), links between them and hiding spots (yellow)" />
                 </StackPanel>
             </DockPanel>
         </Border>
@@ -104,9 +101,6 @@
                         <hx:DirectionalLight3D Color="#A0A0A0" Direction="-0.3,-0.4,-1" />
                         <hx:LineGeometryModel3D x:Name="GridLines" Thickness="1" Smoothness="0.5" IsHitTestVisible="False" />
                         <hx:LineMaterialGeometryModel3D x:Name="MapLines" IsHitTestVisible="False" />
-                        <hx:LineGeometryModel3D x:Name="NavLinkLines" Thickness="1" Smoothness="0.5" IsHitTestVisible="False" Color="{StaticResource NavLinkColor}" />
-                        <hx:LineGeometryModel3D x:Name="NavAreaLines" Thickness="1" Smoothness="0.5" IsHitTestVisible="False" Color="{StaticResource NavAreaColor}" />
-                        <hx:PointGeometryModel3D x:Name="NavHidingSpots" Size="5,5" Figure="Rect" IsHitTestVisible="False" Color="{StaticResource HidingSpotColor}" />
                         <hx:LineGeometryModel3D x:Name="PlayerWideLines" Thickness="6" Smoothness="1" IsHitTestVisible="False" Color="White" />
                         <hx:LineGeometryModel3D x:Name="PlayerMediumLines" Thickness="2" Smoothness="0.5" IsHitTestVisible="False" Color="White" />
                         <hx:LineGeometryModel3D x:Name="PlayerThinLines" Thickness="1" Smoothness="0.5" IsHitTestVisible="False" Color="White" />
@@ -123,7 +117,6 @@
                         <TextBlock Text="{Binding MapName}" FontSize="{StaticResource FontSizeMapTitle}" FontWeight="SemiBold"
                                    Foreground="{StaticResource TextPrimary}" />
                         <TextBlock Text="{Binding MapSubtitle}" Style="{StaticResource OverlayText}" Margin="0,2,0,0" />
-                        <TextBlock Text="{Binding NavMeshMessage}" Style="{StaticResource OverlayText}" Foreground="{StaticResource Warning}" Margin="0,2,0,0" />
                     </StackPanel>
 
                     <!-- Camera info, top right -->

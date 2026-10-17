@@ -9,10 +9,10 @@ using Cs2ServerControl.Shell;
 namespace Cs2ServerControl.Install;
 
 /// <summary>
-/// The Install screen: what the old install and map update scripts did with
-/// PowerShell, now inside the app, with the installer's log on screen.
+/// The Install screen: SteamCMD, the CS2 server, the mods and our plugins,
+/// with the installer's log on screen.
 /// </summary>
-public sealed partial class InstallViewModel : ObservableObject, IScreen, IInstallPrompts {
+public sealed partial class InstallViewModel : ObservableObject, IScreen {
     private const int MaxLogLines = 3000;
 
     private readonly ServerConnection _connection;
@@ -65,7 +65,7 @@ public sealed partial class InstallViewModel : ObservableObject, IScreen, IInsta
     public void OnHidden() {
     }
 
-    /// <summary>Everything: SteamCMD, HLDS, mods, plugins, maps. Safe to run again as a repair.</summary>
+    /// <summary>Everything: SteamCMD, the CS2 server, mods, plugins. Safe to run again as a repair.</summary>
     [RelayCommand]
     public Task<bool> InstallServer() {
         if (_connection.IsRunning) {
@@ -75,29 +75,7 @@ public sealed partial class InstallViewModel : ObservableObject, IScreen, IInsta
         return RunAsync("Install", (installer, token) => installer.InstallServerAsync(token));
     }
 
-    /// <summary>The map pack, the market maps, custom-maps and the map lists; shown on the Maps screen.</summary>
-    [RelayCommand]
-    public Task<bool> UpdateMaps() {
-        return RunAsync("Map update", (installer, token) => installer.InstallMapsAsync(token));
-    }
-
-    /// <summary>Installs one map from the market; the names of the installed maps, empty when it failed.</summary>
-    public async Task<IReadOnlyList<string>> InstallMarketMap(MarketMap map) {
-        IReadOnlyList<string> installed = [];
-        await RunAsync($"Install of {map.Name}", async (installer, token) => installed = await installer.InstallMarketMapAsync(map, token));
-        return installed;
-    }
-
-    public async Task<IReadOnlyList<string>> RemoveMarketMap(MarketMap map) {
-        IReadOnlyList<string> removed = [];
-        await RunAsync($"Removing {map.Name}", (installer, _) => {
-            removed = installer.RemoveMarketMap(map.ModId);
-            return Task.CompletedTask;
-        });
-        return removed;
-    }
-
-    /// <summary>Copies server-files into the server and compiles the fun plugins again.</summary>
+    /// <summary>Copies server-files and the built plugins into the server again.</summary>
     [RelayCommand]
     public Task<bool> RebuildPlugins() {
         return RunAsync("Plugin rebuild", (installer, token) => installer.InstallFunFilesAsync(token));
@@ -108,13 +86,7 @@ public sealed partial class InstallViewModel : ObservableObject, IScreen, IInsta
         _cancellation?.Cancel();
     }
 
-    public async Task<AdminAccount?> AskAdminAccountAsync(CancellationToken cancellation) {
-        var modal = new AdminAccountModal();
-        await _dispatcher.InvokeAsync(() => _dialogs.ShowAsync(modal)).Task.Unwrap();
-        return modal.Result;
-    }
-
-    /// <summary>One job at a time for both screens: they share tools\work and the log. True when it finished without an error.</summary>
+    /// <summary>One job at a time: they share tools\work and the log. True when it finished without an error.</summary>
     private async Task<bool> RunAsync(string title, Func<PackageInstaller, CancellationToken, Task> job) {
         if (IsBusy) {
             return false;
@@ -126,7 +98,7 @@ public sealed partial class InstallViewModel : ObservableObject, IScreen, IInsta
         Log.Clear();
         _cancellation = new CancellationTokenSource();
         var progress = new Progress<InstallMessage>(AddLogLine);
-        var installer = new PackageInstaller(_connection.Paths, progress, this);
+        var installer = new PackageInstaller(_connection.Paths, progress);
         try {
             // Off the UI thread: downloads, archives and SteamCMD take minutes.
             await Task.Run(() => job(installer, _cancellation.Token));
@@ -161,30 +133,3 @@ public sealed partial class InstallViewModel : ObservableObject, IScreen, IInsta
     }
 }
 
-/// <summary>Asks for the admin of the AMX Mod X menus, once per install.</summary>
-public sealed partial class AdminAccountModal : ModalViewModel {
-    [ObservableProperty]
-    private string _name = "";
-
-    [ObservableProperty]
-    private string _password = "";
-
-    [ObservableProperty]
-    private string? _error;
-
-    public AdminAccount? Result { get; private set; }
-
-    [RelayCommand]
-    private void Save() {
-        if (Name.Trim().Length == 0 || Password.Length == 0) {
-            Error = "Name and password are both needed.";
-            return;
-        }
-        if (Name.Contains('"') || Password.Contains('"')) {
-            Error = "Quotes are not allowed, users.ini has no way to escape them.";
-            return;
-        }
-        Result = new AdminAccount(Name.Trim(), Password);
-        Close();
-    }
-}

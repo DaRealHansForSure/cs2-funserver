@@ -19,21 +19,4 @@ internal static class InstallComponents {
 
     // Our own plugins, built with the package (plugins\ in the package root).
     public static readonly IReadOnlyList<string> FunPlugins = ["FunServer"];
-
-    // Map files we copy out of downloaded archives. Anything else (exe, dll,
-    // readme files) stays in the archive.
-    public static readonly IReadOnlySet<string> MapContentExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
-        ".vpk", ".txt", ".nav", ".png", ".jpg",
-    };
-
-    public static readonly IReadOnlyList<string> MapContentFolders = ["maps"];
-
-    // The resource folders of a loose archive: everything above except maps.
-    public static readonly IReadOnlyList<string> LooseResourceFolders = [];
-
-    // Valve's maps that come with the server, for the "Source" column of the Maps screen.
-    public static readonly IReadOnlySet<string> StockMaps = new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
-        "ar_baggage", "ar_pool_day", "ar_shoots", "cs_italy", "cs_office", "de_ancient", "de_anubis",
-        "de_dust2", "de_inferno", "de_mirage", "de_nuke", "de_overpass", "de_train", "de_vertigo",
-    };
 }

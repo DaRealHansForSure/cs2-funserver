@@ -99,9 +99,6 @@ public partial class LiveMapView : UserControl {
         if (e.PropertyName == nameof(LiveMapViewModel.Wireframe) && _viewModel != null) {
             ShowWireframe(_viewModel.Wireframe);
         }
-        if (e.PropertyName == nameof(LiveMapViewModel.NavMesh) && _viewModel != null) {
-            ShowNavMesh(_viewModel.NavMesh);
-        }
     }
 
     private SceneColors Colors => _colors ??= SceneColors.FromResources(this);
@@ -127,20 +124,6 @@ public partial class LiveMapView : UserControl {
         GridLines.Geometry = WireframeScene.BuildFloorGrid(wireframe);
         GridLines.Color = ToMediaColor(WireframeScene.Blend(Colors.WireGrid, Colors.Background, 0.8f));
         WriteCamera(force: true);
-    }
-
-    private void ShowNavMesh(NavMesh? mesh) {
-        if (mesh == null || mesh.Areas.Count == 0) {
-            NavAreaLines.Geometry = null;
-            NavLinkLines.Geometry = null;
-            NavHidingSpots.Geometry = null;
-            return;
-        }
-
-        (LineGeometry3D areas, LineGeometry3D? links, PointGeometry3D? spots) = WireframeScene.BuildNavMesh(mesh);
-        NavAreaLines.Geometry = areas;
-        NavLinkLines.Geometry = links;
-        NavHidingSpots.Geometry = spots;
     }
 
     private void UpdateRenderingHook() {

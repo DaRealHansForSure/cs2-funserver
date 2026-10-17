@@ -8,13 +8,6 @@ public enum InstallMessageKind {
 
 public sealed record InstallMessage(InstallMessageKind Kind, string Text);
 
-public sealed record AdminAccount(string Name, string Password);
-
-public interface IInstallPrompts {
-    // Asked once when users.ini has no admin from this package yet; null = skip.
-    Task<AdminAccount?> AskAdminAccountAsync(CancellationToken cancellation);
-}
-
 /// <summary>A problem that stops the install, with a message meant for the owner.</summary>
 public sealed class InstallException : Exception {
     public InstallException(string message) : base(message) {

@@ -65,7 +65,7 @@ public sealed partial class ServerSettingsViewModel : ObservableObject {
 
     public string TvAddressText => $"On the TV PC: connect {_connection.LanAddress}:{ServerProcess.TvPort}";
 
-    /// <summary>Max players only takes effect when hlds.exe starts, so say so while it runs.</summary>
+    /// <summary>Max players only takes effect when cs2.exe starts, so say so while it runs.</summary>
     public bool IsMaxPlayersPending => _connection.IsRunning && ParseMaxPlayers() != _connection.MaxPlayers;
 
     public void Load() {

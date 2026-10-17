@@ -5,8 +5,8 @@ using System.Text.RegularExpressions;
 namespace Cs2ServerControl.Services;
 
 /// <summary>
-/// Reads and writes server\cstrike\local.cfg, a plain list of cvar "value"
-/// lines. fun_modes.amxx runs the file on every map start after the mode
+/// Reads and writes cfg\fun\local.cfg, a plain list of cvar "value"
+/// lines. The FunServer plugin runs the file on every map start after the mode
 /// config, so whatever is saved here wins over the mode defaults. Lines the
 /// window does not know (comments, hand-written cvars) are kept as they are.
 /// </summary>

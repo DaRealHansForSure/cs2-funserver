@@ -57,51 +57,6 @@ public static class WireframeScene {
         return builder.ToLineGeometry3D();
     }
 
-    /// <summary>
-    /// The nav mesh debug view: area outlines, links between area centers and
-    /// hiding spots. Lifted a little, so the outlines do not flicker inside
-    /// the floor edges they lie on.
-    /// </summary>
-    public static (LineGeometry3D Areas, LineGeometry3D? Links, PointGeometry3D? Spots) BuildNavMesh(NavMesh mesh) {
-        var lift = new Vector3(0, 0, 3);
-        var areaBuilder = new LineBuilder();
-        var centers = new Dictionary<uint, Vector3>();
-        foreach (NavArea area in mesh.Areas) {
-            Vector3 northWest = ToVector(area.NorthWest) + lift;
-            Vector3 northEast = ToVector(area.NorthEast) + lift;
-            Vector3 southEast = ToVector(area.SouthEast) + lift;
-            Vector3 southWest = ToVector(area.SouthWest) + lift;
-            areaBuilder.AddLine(northWest, northEast);
-            areaBuilder.AddLine(northEast, southEast);
-            areaBuilder.AddLine(southEast, southWest);
-            areaBuilder.AddLine(southWest, northWest);
-            centers[area.Id] = ToVector(area.Center) + lift;
-        }
-
-        // Each link once, even when both areas list each other.
-        var linkBuilder = new LineBuilder();
-        var drawn = new HashSet<(uint, uint)>();
-        foreach ((uint from, uint to) in mesh.Connections) {
-            (uint, uint) key = from < to ? (from, to) : (to, from);
-            if (!drawn.Add(key) || !centers.TryGetValue(from, out Vector3 start) || !centers.TryGetValue(to, out Vector3 end)) {
-                continue;
-            }
-            linkBuilder.AddLine(start, end);
-        }
-
-        PointGeometry3D? spots = null;
-        if (mesh.HidingSpots.Count > 0) {
-            var positions = new Vector3Collection(mesh.HidingSpots.Select(spot => ToVector(spot) + lift));
-            spots = new PointGeometry3D { Positions = positions };
-        }
-
-        return (areaBuilder.ToLineGeometry3D(), drawn.Count > 0 ? linkBuilder.ToLineGeometry3D() : null, spots);
-    }
-
-    private static Vector3 ToVector(System.Numerics.Vector3 vector) {
-        return new Vector3(vector.X, vector.Y, vector.Z);
-    }
-
     public static Color4 ToColor4(MediaColor color, float opacity) {
         return new Color4(color.R / 255f, color.G / 255f, color.B / 255f, opacity);
     }

@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Cs2ServerControl.Install;
 using Xunit;
 
@@ -44,29 +43,5 @@ public class InstallConfigTests {
     [Fact]
     public void ABrokenGameInfoIsReported() {
         Assert.Throws<InstallException>(() => ConfigEdits.AddMetamodSearchPath(["\"GameInfo\"", "{", "}"]));
-    }
-
-    [Fact]
-    public void PicksThe530PixelJpgOrPngPreview() {
-        const string json = """
-            {"_aPreviewMedia": {"_aImages": [
-                {"_sBaseUrl": "https://images.gamebanana.com/img/ss/mods", "_sFile": "a.webp", "_sFile530": "530-90_a.webp"},
-                {"_sBaseUrl": "https://images.gamebanana.com/img/ss/mods", "_sFile": "b.jpg", "_sFile530": "530-90_b.jpg", "_sFile220": "220-90_b.jpg"}
-            ]}}
-            """;
-        using JsonDocument document = JsonDocument.Parse(json);
-
-        Assert.Equal("https://images.gamebanana.com/img/ss/mods/530-90_b.jpg", MapInstaller.PickPreviewUrl(document.RootElement));
-    }
-
-    [Fact]
-    public void FallsBackToTheFullSizePreviewAndToNothing() {
-        using JsonDocument fullOnly = JsonDocument.Parse("""{"_aPreviewMedia": {"_aImages": [{"_sBaseUrl": "https://x", "_sFile": "c.PNG"}]}}""");
-        using JsonDocument noImages = JsonDocument.Parse("""{"_aPreviewMedia": []}""");
-        using JsonDocument webpOnly = JsonDocument.Parse("""{"_aPreviewMedia": {"_aImages": [{"_sBaseUrl": "https://x", "_sFile": "d.webp"}]}}""");
-
-        Assert.Equal("https://x/c.PNG", MapInstaller.PickPreviewUrl(fullOnly.RootElement));
-        Assert.Null(MapInstaller.PickPreviewUrl(noImages.RootElement));
-        Assert.Null(MapInstaller.PickPreviewUrl(webpOnly.RootElement));
     }
 }

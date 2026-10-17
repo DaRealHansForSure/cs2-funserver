@@ -5,8 +5,6 @@ public enum AppCommandKind {
     Window,
     /// <summary>--install: the window, which installs or repairs the server right away.</summary>
     Install,
-    /// <summary>--update-maps: the window, which updates the maps right away.</summary>
-    UpdateMaps,
     /// <summary>--start: the window, which starts the server right away.</summary>
     Start,
 }
@@ -21,8 +19,6 @@ public sealed record AppCommand(AppCommandKind Kind) {
         switch (args[0].ToLowerInvariant()) {
             case "--install":
                 return new AppCommand(AppCommandKind.Install);
-            case "--update-maps":
-                return new AppCommand(AppCommandKind.UpdateMaps);
             case "--start":
                 return new AppCommand(AppCommandKind.Start);
             default:

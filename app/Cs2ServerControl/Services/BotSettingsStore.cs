@@ -5,8 +5,8 @@ namespace Cs2ServerControl.Services;
 /// <summary>
 /// The bot settings in two layers. The package's defaults are the marked block
 /// at the end of modes\base.cfg; the window only reads it. What the host
-/// changes goes into server\cstrike\local_bots.cfg, only the values that
-/// differ from the defaults. fun_modes runs that file right after base.cfg and
+/// changes goes into cfg\fun\local_bots.cfg, only the values that differ
+/// from the defaults. The FunServer plugin runs that file right after base.cfg and
 /// before the mode config, so a mode can still switch bots off (Deathrun) and
 /// an install never touches the host's choices. No file means the defaults.
 /// </summary>

@@ -54,7 +54,7 @@
                 <TextBlock Text="Bots" Style="{StaticResource PageTitleText}" />
                 <Border Background="{StaticResource ControlBackground}" CornerRadius="{StaticResource RadiusPill}"
                         Padding="{StaticResource PillPadding}" Margin="14,0,0,0" VerticalAlignment="Center">
-                    <TextBlock Text="zBot from ReGameDLL" FontSize="{StaticResource FontSizeToolbar}" Foreground="{StaticResource TextSecondary}" />
+                    <TextBlock Text="CS2's built-in bots" FontSize="{StaticResource FontSizeToolbar}" Foreground="{StaticResource TextSecondary}" />
                 </Border>
                 <TextBlock Text="{Binding HeaderInfo}" FontSize="{StaticResource FontSizeToolbar}" Foreground="{StaticResource TextTertiary}"
                            VerticalAlignment="Center" Margin="14,0,0,0" />
@@ -164,86 +164,8 @@
             <!-- Right column -->
             <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto" Focusable="False">
                 <StackPanel>
-                    <!-- Navigation per map -->
-                    <Border Style="{StaticResource Card}">
-                        <StackPanel>
-                            <DockPanel Margin="0,0,0,12">
-                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                                    <TextBlock Text="zBot creates missing files on first load" Style="{StaticResource HintText}" Margin="0,0,12,0" />
-                                    <Button Style="{StaticResource SmallSecondaryButton}" Command="{Binding QueueAllMissingCommand}"
-                                            Content="{Binding MissingNavCount}" ContentStringFormat="Generate all missing ({0})"
-                                            AutomationProperties.Name="Generate all missing navigation files"
-                                            ToolTip="Queues every map without a navigation file; Apply builds them in the hidden helper server" />
-                                </StackPanel>
-                                <TextBlock Text="Navigation per map" Style="{StaticResource CardTitleText}" />
-                            </DockPanel>
-                            <Border BorderBrush="{StaticResource CardBorder}" BorderThickness="{StaticResource BorderBottomOne}" Padding="4,0,0,6">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="150" />
-                                        <ColumnDefinition Width="120" />
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="Map" Style="{StaticResource HintText}" />
-                                    <TextBlock Grid.Column="1" Text="Status" Style="{StaticResource HintText}" />
-                                    <TextBlock Grid.Column="2" Text="Action" Style="{StaticResource HintText}" HorizontalAlignment="Right" />
-                                </Grid>
-                            </Border>
-                            <TextBlock Text="No mapcycle files found. Run Install or repair on the Install screen." Style="{StaticResource HintText}" Margin="4,12,0,0"
-                                       Visibility="{Binding NavRows.Count, Converter={StaticResource VisibleWhenZero}}" />
-                            <!-- Own scroll area: with 60 maps the table would push Active bots out of sight. -->
-                            <ScrollViewer MaxHeight="{StaticResource NavTableMaxHeight}" VerticalScrollBarVisibility="Auto" Focusable="False">
-                            <ItemsControl ItemsSource="{Binding NavRows}" Focusable="False">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Border BorderBrush="{StaticResource ConsoleBorder}" BorderThickness="{StaticResource BorderBottomOne}"
-                                                MinHeight="{StaticResource TableRowHeight}" Padding="4,4,0,4">
-                                            <Grid>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="150" />
-                                                    <ColumnDefinition Width="120" />
-                                                </Grid.ColumnDefinitions>
-                                                <TextBlock Grid.Column="0" Text="{Binding MapName}" FontFamily="{StaticResource MonoFont}"
-                                                           FontSize="{StaticResource FontSizeToolbar}" VerticalAlignment="Center" />
-                                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                                    <TextBlock x:Name="Status" Text="{Binding StatusText}" FontSize="{StaticResource FontSizeToolbar}"
-                                                               Foreground="{StaticResource SuccessPillText}" />
-                                                    <!-- zBot reports no percentage, only its steps; the bar just shows it is busy. -->
-                                                    <ProgressBar x:Name="Progress" Height="{StaticResource ProgressBarHeight}" Margin="0,4,12,0"
-                                                                 IsIndeterminate="True" Background="{StaticResource ControlBackground}"
-                                                                 Foreground="{StaticResource WireHigh}" BorderThickness="0" Visibility="Collapsed" />
-                                                    <TextBlock Text="{Binding Step}" FontSize="{StaticResource FontSizeCaption}" Foreground="{StaticResource TextTertiary}"
-                                                               Margin="0,3,0,0" TextTrimming="CharacterEllipsis"
-                                                               Visibility="{Binding HasStep, Converter={StaticResource VisibleWhenTrue}}" />
-                                                </StackPanel>
-                                                <Button Grid.Column="2" Content="{Binding ActionText}" Style="{StaticResource SmallSecondaryButton}"
-                                                        HorizontalAlignment="Right" MinWidth="110" IsEnabled="{Binding CanRunAction}"
-                                                        Command="{Binding DataContext.ToggleNavActionCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                        CommandParameter="{Binding}" AutomationProperties.Name="{Binding MapName, StringFormat=Navigation {0}}" />
-                                            </Grid>
-                                        </Border>
-                                        <DataTemplate.Triggers>
-                                            <DataTrigger Binding="{Binding State}" Value="Missing">
-                                                <Setter TargetName="Status" Property="Foreground" Value="{StaticResource Warning}" />
-                                            </DataTrigger>
-                                            <DataTrigger Binding="{Binding State}" Value="Queued">
-                                                <Setter TargetName="Status" Property="Foreground" Value="{StaticResource Accent}" />
-                                            </DataTrigger>
-                                            <DataTrigger Binding="{Binding State}" Value="Generating">
-                                                <Setter TargetName="Status" Property="Foreground" Value="{StaticResource WireHigh}" />
-                                                <Setter TargetName="Progress" Property="Visibility" Value="Visible" />
-                                            </DataTrigger>
-                                        </DataTemplate.Triggers>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                            </ScrollViewer>
-                        </StackPanel>
-                    </Border>
-
                     <!-- Active bots -->
-                    <Border Style="{StaticResource Card}" Margin="0,16,0,0">
+                    <Border Style="{StaticResource Card}">
                         <StackPanel>
                             <DockPanel Margin="0,0,0,8">
                                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">

@@ -97,7 +97,7 @@
                     <Border Style="{StaticResource Card}" DataContext="{Binding Settings}">
                         <StackPanel>
                             <DockPanel Margin="0,0,0,12">
-                                <TextBlock DockPanel.Dock="Right" Text="Saved in cstrike\local.cfg on Apply" Style="{StaticResource HintText}" />
+                                <TextBlock DockPanel.Dock="Right" Text="Saved in cfg\fun\local.cfg on Apply" Style="{StaticResource HintText}" />
                                 <TextBlock Text="Settings" Style="{StaticResource CardTitleText}" />
                             </DockPanel>
                             <Grid>

@@ -202,7 +202,7 @@ public sealed partial class ServerConnection : ObservableObject, IDisposable {
         string password = AppSettings.CreatePassword();
         Settings.RconPassword = password;
         Settings.Save();
-        // Before the first install there is no cstrike folder; the first start writes it.
+        // Before the first install there is no server folder; the first start writes it.
         if (Paths.IsServerInstalled) {
             Process.WriteLocalConfigPassword(password);
         }

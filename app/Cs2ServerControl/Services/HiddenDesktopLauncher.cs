@@ -5,7 +5,7 @@ using System.Runtime.InteropServices;
 namespace Cs2ServerControl.Services;
 
 /// <summary>
-/// Starts a program on a separate, never shown Windows desktop. hlds.exe
+/// Starts a program on a separate, never shown Windows desktop. cs2.exe
 /// -console opens its own console window whatever start options it gets,
 /// and that window takes the focus; on another desktop it can never show up
 /// on the owner's screen or pull them out of a game.

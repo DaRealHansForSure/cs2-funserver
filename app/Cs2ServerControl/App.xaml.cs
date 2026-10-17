@@ -31,8 +31,6 @@ public partial class App : Application {
             PackagePaths paths = PackagePaths.Locate();
             AppSettings settings = AppSettings.Load();
             _connection = new ServerConnection(paths, settings, Dispatcher);
-            // Left over from a window that closed during a nav build.
-            _connection.Process.StopNavHelpers();
 
             var shell = new ShellViewModel(_connection);
             var window = new MainWindow(shell, settings);
@@ -51,8 +49,6 @@ public partial class App : Application {
     }
 
     protected override void OnExit(ExitEventArgs e) {
-        // A nav build still running would keep going on the invisible desktop.
-        _connection?.Process.StopNavHelpers();
         _connection?.Dispose();
         _windowMutex?.Dispose();
         base.OnExit(e);
