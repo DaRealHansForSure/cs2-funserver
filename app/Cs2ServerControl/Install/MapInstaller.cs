@@ -34,52 +34,6 @@ internal sealed class MapInstaller {
         _copier = new MapContentCopier(paths.GameDir);
     }
 
-    /// <summary>
-    /// Downloads the announcer sound packs and copies the files miscstats plays
-    /// into cstrike\sound under the names it expects. Files that already exist
-    /// are kept, so sounds the owner put there by hand win. A failure here only
-    /// costs the sounds, never the install.
-    /// </summary>
-    public async Task InstallQuakeSoundsAsync(CancellationToken cancellation) {
-        _log.Step("Quake announcer sounds");
-
-        Dictionary<string, string> extractedPacks = [];
-        foreach ((string packName, QuakeSoundPack pack) in InstallComponents.QuakeSoundPacks) {
-            try {
-                string archive = await _downloads.GetAsync(pack.Url, pack.FileName, cancellation);
-                string extracted = await Task.Run(() => _extractor.Expand(archive), cancellation);
-                extractedPacks[packName] = Path.Combine(extracted, pack.Folder);
-            } catch (Exception exception) when (IsRecoverable(exception)) {
-                _log.Problem($"Sound pack {packName} failed: {exception.Message}");
-            }
-        }
-
-        int installedCount = 0;
-        foreach (QuakeSound sound in InstallComponents.QuakeSounds) {
-            if (!extractedPacks.TryGetValue(sound.PackName, out string? packFolder)) {
-                continue;
-            }
-
-            string targetPath = Path.Combine(_paths.GameDir, "sound", sound.TargetName);
-            if (File.Exists(targetPath)) {
-                installedCount++;
-                continue;
-            }
-
-            string sourcePath = Path.Combine(packFolder, sound.SourceName);
-            if (!File.Exists(sourcePath)) {
-                _log.Problem($"{sound.SourceName} is missing in sound pack {sound.PackName}.");
-                continue;
-            }
-
-            Directory.CreateDirectory(Path.GetDirectoryName(targetPath)!);
-            File.Copy(sourcePath, targetPath);
-            installedCount++;
-        }
-
-        _log.Note($"{installedCount} of {InstallComponents.QuakeSounds.Count} sounds in place");
-    }
-
     public async Task InstallMapPackAsync(CancellationToken cancellation) {
         _log.Step("Downloading fun maps");
 

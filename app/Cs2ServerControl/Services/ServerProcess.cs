@@ -122,6 +122,8 @@ public sealed class ServerProcess {
 
         WriteLocalConfigPassword(rconPassword);
         WriteActiveMode(modeId);
+        // A CS2 update replaces gameinfo.gi and with it the line that loads Metamod.
+        Install.ServerComponentsInstaller.EnsureMetamodSearchPath(new Install.InstallPaths(_paths), log: null);
 
         GameMode mode = GameModes.Find(modeId) ?? GameModes.All[0];
         string arguments = BuildArguments(mode, startMap, maxPlayers, lanAddress, rconPassword);

@@ -5,103 +5,45 @@ using Xunit;
 namespace Cs2ServerControl.Tests;
 
 public class InstallConfigTests {
+    // The SearchPaths part of a real CS2 gameinfo.gi, tabs as Valve writes them.
+    private static readonly string[] GameInfoLines = [
+        "\tFileSystem",
+        "\t{",
+        "\t\tSearchPaths",
+        "\t\t{",
+        "\t\t\tGame_LowViolence\tcsgo_lv // Perfect World content override",
+        "\t\t\tGame\tcsgo",
+        "\t\t\tGame\tcsgo_imported",
+        "\t\t\tGame\tcsgo_core",
+        "\t\t\tGame\tcore",
+        "\t\t}",
+        "\t}",
+    ];
+
     [Fact]
-    public void PointsOnlyTheGameDllLineAtMetamod() {
-        string[] libList = [
-            "game \"Counter-Strike\"",
-            "gamedll \"dlls\\mp.dll\"",
-            "gamedll_linux \"dlls/cs.so\"",
-            "  GameDll \"dlls\\other.dll\"",
-        ];
+    public void PutsTheMetamodSearchPathRightAboveGameCsgo() {
+        List<string> edited = ConfigEdits.AddMetamodSearchPath(GameInfoLines);
 
-        List<string> updated = ConfigEdits.PointGameDllToMetamod(libList);
-
-        Assert.Equal([
-            "game \"Counter-Strike\"",
-            "gamedll \"addons\\metamod\\metamod.dll\"",
-            "gamedll_linux \"dlls/cs.so\"",
-            "gamedll \"addons\\metamod\\metamod.dll\"",
-        ], updated);
+        int metamod = edited.IndexOf("\t\t\tGame\tcsgo/addons/metamod");
+        Assert.True(metamod > 0);
+        Assert.Equal("\t\t\tGame\tcsgo", edited[metamod + 1]);
+        Assert.Equal(GameInfoLines.Length + 1, edited.Count);
+        Assert.True(ConfigEdits.HasMetamodSearchPath(edited));
+        Assert.False(ConfigEdits.HasMetamodSearchPath(GameInfoLines));
     }
 
     [Fact]
-    public void ReplacesTheBotEnableLineOfGameInit() {
-        List<string> updated = ConfigEdits.EnableZBot(["// ReGameDLL", "bot_enable \"0\"", "mp_round_infinite 0"]);
+    public void ASecondRunChangesNothing() {
+        List<string> once = ConfigEdits.AddMetamodSearchPath(GameInfoLines);
 
-        Assert.Equal(["// ReGameDLL", "bot_enable \"1\"", "mp_round_infinite 0"], updated);
+        List<string> twice = ConfigEdits.AddMetamodSearchPath(once);
+
+        Assert.Equal(once, twice);
     }
 
     [Fact]
-    public void AddsBotEnableWhenGameInitHasNone() {
-        Assert.Equal(["// nothing", "bot_enable \"1\""], ConfigEdits.EnableZBot(["// nothing"]));
-        Assert.Equal(["bot_enable \"1\""], ConfigEdits.EnableZBot([]));
-    }
-
-    [Fact]
-    public void WritesTheMetamodLineRelativeToCstrike() {
-        string line = ConfigEdits.MetamodPluginLine(@"C:\cs\server\cstrike", @"C:\cs\server\cstrike\addons\amxmodx\dlls\amxmodx_mm.dll");
-
-        Assert.Equal("win32 addons/amxmodx/dlls/amxmodx_mm.dll", line);
-    }
-
-    [Fact]
-    public void MergesTheFunPluginsIntoPluginsIni() {
-        string[] stock = ["; AMX Mod X plugins", "admin.amxx", ";miscstats.amxx\t; Misc. Stats", "statsx.amxx"];
-
-        List<string> merged = ConfigEdits.MergeAmxPluginList(stock, ["fun_modes.amxx", "fun_hook.amxx"]);
-
-        Assert.Equal([
-            "; AMX Mod X plugins",
-            "admin.amxx",
-            "miscstats.amxx\t; Misc. Stats",
-            "statsx.amxx",
-            "",
-            "; --- LAN Fun Server ---",
-            "fun_modes.amxx",
-            "fun_hook.amxx",
-        ], merged);
-    }
-
-    [Fact]
-    public void PluginsIniMergeIsStableAndAddsNewPluginsOnce() {
-        List<string> firstRun = ConfigEdits.MergeAmxPluginList(["admin.amxx"], ["fun_modes.amxx"]);
-        List<string> secondRun = ConfigEdits.MergeAmxPluginList(firstRun, ["fun_modes.amxx"]);
-        List<string> laterVersion = ConfigEdits.MergeAmxPluginList(secondRun, ["fun_modes.amxx", "fun_livemap.amxx"]);
-
-        Assert.Equal(firstRun, secondRun);
-        Assert.Equal([.. firstRun, "fun_livemap.amxx"], laterVersion);
-        Assert.Equal(laterVersion, ConfigEdits.MergeAmxPluginList(laterVersion, ["fun_modes.amxx", "fun_livemap.amxx"]));
-    }
-
-    [Fact]
-    public void AddsTheAdminLineOnceWithTheKickFlag() {
-        string[] users = ["; Users configuration file", "; \"loopback\" \"\" \"abcdefghijklmnopqrstu\" \"de\""];
-
-        List<string> updated = ConfigEdits.AddAdminAccount(users, new AdminAccount("Benji", "secret"));
-
-        Assert.False(ConfigEdits.HasPackageAdmin(users));
-        Assert.True(ConfigEdits.HasPackageAdmin(updated));
-        Assert.Equal([.. users, "", "; --- LAN Fun Server ---", "\"Benji\" \"secret\" \"abcdefghijklmnopqrstu\" \"a\""], updated);
-        Assert.Equal(updated, ConfigEdits.AddAdminAccount(updated, new AdminAccount("Other", "pw")));
-    }
-
-    [Fact]
-    public void StoresAnUmlautNameAsItsUtf8Bytes() {
-        List<string> updated = ConfigEdits.AddAdminAccount([], new AdminAccount("J\u00fcrg", "pw"));
-
-        // The UTF-8 bytes C3 BC of the umlaut, one char per byte in the Latin-1 written file.
-        Assert.Equal("\"J\u00c3\u00bcrg\" \"pw\" \"abcdefghijklmnopqrstu\" \"a\"", updated[^1]);
-    }
-
-    [Theory]
-    [InlineData("Benji", "secret", null)]
-    [InlineData("", "secret", "The admin name is empty.")]
-    [InlineData("Benji", " ", "The admin password is empty.")]
-    [InlineData("Be\"nji", "secret", "The admin name must not contain quotes.")]
-    [InlineData("Benji", "sec ret", "The admin password must not contain spaces or quotes.")]
-    [InlineData("Benji", "sec\"ret", "The admin password must not contain spaces or quotes.")]
-    public void ChecksTheAdminAccount(string name, string password, string? problem) {
-        Assert.Equal(problem, ConfigEdits.AdminAccountProblem(new AdminAccount(name, password)));
+    public void ABrokenGameInfoIsReported() {
+        Assert.Throws<InstallException>(() => ConfigEdits.AddMetamodSearchPath(["\"GameInfo\"", "{", "}"]));
     }
 
     [Fact]

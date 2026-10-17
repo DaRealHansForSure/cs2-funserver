@@ -74,77 +74,11 @@ public class InstallMapTests : IDisposable {
     }
 
     [Fact]
-    public void BuildsCyclesWithFunMapsBeforeStockMaps() {
-        IReadOnlyDictionary<string, List<string>> cycles = MapModes.BuildCycles(
-            ["de_dust2", "fy_snow", "FY_SNOW", "aim_map", "cs_747", "deathrun_temple", "zm_test", "surf_ski_2"]);
-
-        Assert.Equal(MapModes.AllModes.Order(), cycles.Keys.Order());
-        Assert.Equal(["aim_map", "fy_snow", "surf_ski_2", "cs_747", "de_dust2"], cycles["classic"]);
-        Assert.Equal(["aim_map", "fy_snow", "de_dust2"], cycles["gungame"]);
-        Assert.Equal(["aim_map", "fy_snow", "surf_ski_2", "de_dust2"], cycles["deathmatch"]);
-        Assert.Equal(["zm_test", "de_dust2"], cycles["zombie"]);
-        Assert.Equal(["deathrun_temple"], cycles["deathrun"]);
-    }
-
-    [Fact]
     public void BuildsEmptyCyclesWithoutMaps() {
         IReadOnlyDictionary<string, List<string>> cycles = MapModes.BuildCycles([]);
 
         Assert.Equal(5, cycles.Count);
         Assert.All(cycles.Values, Assert.Empty);
-    }
-
-    [Fact]
-    public void CopiesAMapsFolderArchiveAndKeepsExistingFilesOutsideMaps() {
-        string cstrike = CreateFolder("cstrike");
-        WriteFile(cstrike, @"sound\misc\old.wav", "stock");
-        WriteFile(cstrike, @"maps\fy_test.bsp", "old map");
-
-        string archive = CreateFolder("extracted");
-        WriteFile(archive, @"pack\cstrike\maps\fy_test.bsp", "new map");
-        WriteFile(archive, @"pack\cstrike\maps\fy_other.bsp", "other map");
-        WriteFile(archive, @"pack\cstrike\maps\fy_test.txt", "briefing");
-        WriteFile(archive, @"pack\cstrike\sound\misc\old.wav", "from the map");
-        WriteFile(archive, @"pack\cstrike\sound\misc\new.wav", "new sound");
-        WriteFile(archive, @"pack\cstrike\fy_test.wad", "textures");
-        WriteFile(archive, @"pack\cstrike\maps\setup.exe", "never");
-        WriteFile(archive, @"pack\readme.txt", "never either");
-
-        IReadOnlyList<string> maps = new MapContentCopier(cstrike).Install(archive);
-
-        Assert.Equal(["fy_other", "fy_test"], maps.Order());
-        Assert.Equal("new map", ReadFile(cstrike, @"maps\fy_test.bsp"));
-        Assert.Equal("other map", ReadFile(cstrike, @"maps\fy_other.bsp"));
-        Assert.Equal("briefing", ReadFile(cstrike, @"maps\fy_test.txt"));
-        Assert.Equal("stock", ReadFile(cstrike, @"sound\misc\old.wav"));
-        Assert.Equal("new sound", ReadFile(cstrike, @"sound\misc\new.wav"));
-        Assert.Equal("textures", ReadFile(cstrike, "fy_test.wad"));
-        Assert.False(File.Exists(Path.Combine(cstrike, @"maps\setup.exe")));
-        Assert.False(File.Exists(Path.Combine(cstrike, "readme.txt")));
-    }
-
-    [Fact]
-    public void CopiesALooseArchiveIntoMapsAndKeepsResourceLayout() {
-        string cstrike = CreateFolder("cstrike");
-        WriteFile(cstrike, @"models\player.mdl", "stock model");
-
-        string archive = CreateFolder("extracted");
-        WriteFile(archive, @"Aim_Loose.bsp", "map");
-        WriteFile(archive, @"Aim_Loose.res", "resources");
-        WriteFile(archive, @"Aim_Loose.bsp.bak", "never");
-        WriteFile(archive, @"textures\aim.wad", "textures");
-        WriteFile(archive, @"extra\sound\aim\shot.wav", "sound");
-        WriteFile(archive, @"extra\models\player.mdl", "replacement");
-
-        IReadOnlyList<string> maps = new MapContentCopier(cstrike).Install(archive);
-
-        Assert.Equal(["aim_loose"], maps);
-        Assert.Equal("map", ReadFile(cstrike, @"maps\Aim_Loose.bsp"));
-        Assert.Equal("resources", ReadFile(cstrike, @"maps\Aim_Loose.res"));
-        Assert.False(File.Exists(Path.Combine(cstrike, @"maps\Aim_Loose.bsp.bak")));
-        Assert.Equal("textures", ReadFile(cstrike, "aim.wad"));
-        Assert.Equal("sound", ReadFile(cstrike, @"sound\aim\shot.wav"));
-        Assert.Equal("stock model", ReadFile(cstrike, @"models\player.mdl"));
     }
 
     [Fact]
@@ -208,20 +142,6 @@ public class InstallMapTests : IDisposable {
     internal static string PackageRoot([CallerFilePath] string sourceFile = "") {
         // The test project sits in app\Cs2ServerControl.Tests, two levels below the package.
         return Path.GetFullPath(Path.Combine(Path.GetDirectoryName(sourceFile)!, "..", ".."));
-    }
-
-    [Fact]
-    public void PutsALooseSpriteWhereTheMapExpectsIt() {
-        string cstrike = CreateFolder("cstrike");
-        string archive = CreateFolder("extracted");
-        File.WriteAllBytes(Path.Combine(archive, "surf_loose.bsp"),
-            BspWithEntities("{\n\"classname\" \"env_sprite\"\n\"model\" \"sprites/suicideexplode.spr\"\n}\n{\n\"model\" \"*3\"\n}\n"));
-        WriteFile(archive, "suicideexplode.spr", "sprite");
-
-        new MapContentCopier(cstrike).Install(archive);
-
-        Assert.Equal("sprite", ReadFile(cstrike, @"sprites\suicideexplode.spr"));
-        Assert.Empty(MapResources.FindMissing(Path.Combine(cstrike, @"maps\surf_loose.bsp"), cstrike));
     }
 
     [Fact]

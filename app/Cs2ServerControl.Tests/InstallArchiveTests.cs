@@ -19,20 +19,6 @@ public class InstallArchiveTests : IDisposable {
         FileTree.DeleteFolderQuietly(_tempDir);
     }
 
-    [Fact]
-    public void ExtractsTheZBotProfiles() {
-        string? archive = CachedDownload("zbot-profiles.zip");
-        if (archive == null) {
-            return;
-        }
-
-        string extracted = new ArchiveExtractor(_tempDir).Expand(archive);
-
-        Assert.Equal(Path.Combine(_tempDir, "zbot-profiles"), extracted);
-        Assert.NotNull(FileTree.FindFirstFile(extracted, "BotProfile.db"));
-        Assert.NotNull(FileTree.FindFirstFile(extracted, "BotChatter.db"));
-    }
-
     [Theory]
     [InlineData(@"maps\fy_snow.rar")]
     [InlineData(@"maps\de_rats.rar")]
@@ -54,22 +40,6 @@ public class InstallArchiveTests : IDisposable {
         string expectedMap = Path.GetFileNameWithoutExtension(archive);
         Assert.Contains(expectedMap, maps);
         Assert.True(File.Exists(Path.Combine(cstrike, "maps", expectedMap + ".bsp")));
-    }
-
-    [Theory]
-    [InlineData(@"sounds\blackshot_killstreak_quakesounds.rar", "Blackshot")]
-    [InlineData(@"sounds\kill_sounds_pack_ut_recreation.rar", "UtRecreation")]
-    public void ExtractsTheSoundPacksWithTheExpectedLayout(string cachedFile, string packName) {
-        string? archive = CachedDownload(cachedFile);
-        if (archive == null) {
-            return;
-        }
-
-        string extracted = new ArchiveExtractor(_tempDir).Expand(archive);
-
-        string packFolder = Path.Combine(extracted, InstallComponents.QuakeSoundPacks[packName].Folder);
-        IEnumerable<QuakeSound> sounds = InstallComponents.QuakeSounds.Where(sound => sound.PackName == packName);
-        Assert.All(sounds, sound => Assert.True(File.Exists(Path.Combine(packFolder, sound.SourceName)), sound.SourceName));
     }
 
     [Fact]

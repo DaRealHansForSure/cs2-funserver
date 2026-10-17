@@ -17,7 +17,10 @@ internal sealed class InstallPaths {
     public string PreviewsDir => Package.PreviewsDir;
     public string Cs2Exe => Package.Cs2Exe;
 
-    public string OverlayDir => Path.Combine(Package.RootDir, "server-files", "cstrike");
+    // The package's own files for game\csgo (configs), copied over on every install.
+    public string OverlayDir => Path.Combine(Package.RootDir, "server-files", "csgo");
+    // Our built plugins, one folder per plugin, copied into CounterStrikeSharp's plugins folder.
+    public string PluginsSourceDir => Path.Combine(Package.RootDir, "plugins");
     public string OwnMapsDir => Path.Combine(Package.RootDir, "custom-maps");
     public string DownloadDir => Path.Combine(Package.ToolsDir, "downloads");
     public string WorkDir => Path.Combine(Package.ToolsDir, "work");
@@ -27,17 +30,9 @@ internal sealed class InstallPaths {
     // Maps installed from the market; created at runtime, not part of the package.
     public string MarketListFile => Path.Combine(Package.ToolsDir, "market.csv");
 
-    public string LibListFile => Path.Combine(GameDir, "liblist.gam");
-    public string GameInitFile => Path.Combine(GameDir, "game_init.cfg");
-    public string AddonsDir => Path.Combine(GameDir, "addons");
+    public string GameInfoFile => Path.Combine(GameDir, "gameinfo.gi");
+    public string AddonsDir => Package.AddonsDir;
     public string MetamodDir => Path.Combine(AddonsDir, "metamod");
-    public string MetamodPluginsFile => Path.Combine(MetamodDir, "plugins.ini");
-    public string AmxDir => Path.Combine(AddonsDir, "amxmodx");
-    public string AmxConfigsDir => Path.Combine(AmxDir, "configs");
-    public string AmxUsersFile => Path.Combine(AmxConfigsDir, "users.ini");
-    public string AmxPluginListFile => Path.Combine(AmxConfigsDir, "plugins.ini");
-    public string AmxMapsFile => Path.Combine(AmxConfigsDir, "maps.ini");
-    public string AmxScriptingDir => Path.Combine(AmxDir, "scripting");
-    public string AmxPluginsDir => Path.Combine(AmxDir, "plugins");
-    public string AmxCompilerExe => Path.Combine(AmxScriptingDir, "amxxpc.exe");
+    public string CounterStrikeSharpDir => Path.Combine(AddonsDir, "counterstrikesharp");
+    public string CounterStrikeSharpPluginsDir => Path.Combine(CounterStrikeSharpDir, "plugins");
 }

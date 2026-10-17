@@ -4,10 +4,9 @@ using Cs2ServerControl.Services;
 namespace Cs2ServerControl.Install;
 
 /// <summary>
-/// Installs a complete Counter-Strike 1.6 LAN fun server into the "server"
-/// folder of the package: SteamCMD + HLDS, ReHLDS, ReGameDLL, Metamod-R,
-/// AMX Mod X, the zBot bot profiles from ReGameDLL, the fun plugins and
-/// configs from server-files, then the map pack.
+/// Installs a complete CS2 LAN fun server into the "server" folder of the
+/// package: SteamCMD and the CS2 dedicated server, Metamod:Source,
+/// CounterStrikeSharp, our fun plugins and the configs from server-files.
 /// Running it again is safe: downloads are cached in tools\downloads and
 /// every step re-applies its changes, so it also works as a repair or update.
 /// </summary>
@@ -28,7 +27,7 @@ public sealed class PackageInstaller {
         var downloads = new DownloadCache(_paths.DownloadDir, _log);
         var extractor = new ArchiveExtractor(_paths.WorkDir);
         _components = new ServerComponentsInstaller(_paths, _log, downloads, extractor);
-        _funFiles = new FunFilesInstaller(_paths, _log, prompts);
+        _funFiles = new FunFilesInstaller(_paths, _log);
         _maps = new MapInstaller(_paths, _log, downloads, extractor);
         _firewall = new FirewallSetup(_log);
     }
@@ -38,19 +37,12 @@ public sealed class PackageInstaller {
         Directory.CreateDirectory(_paths.ServerDir);
         Directory.CreateDirectory(_paths.WorkDir);
         try {
-            await _components.InstallHldsAsync(cancellation);
-            cancellation.ThrowIfCancellationRequested();
-            await _components.InstallReHldsAsync(cancellation);
-            cancellation.ThrowIfCancellationRequested();
-            await _components.InstallReGameDllAsync(cancellation);
+            await _components.InstallServerAsync(cancellation);
             cancellation.ThrowIfCancellationRequested();
             await _components.InstallMetamodAsync(cancellation);
             cancellation.ThrowIfCancellationRequested();
-            await _components.InstallAmxModXAsync(cancellation);
+            await _components.InstallCounterStrikeSharpAsync(cancellation);
             cancellation.ThrowIfCancellationRequested();
-            await _components.InstallZBotAsync(cancellation);
-            cancellation.ThrowIfCancellationRequested();
-            _components.RegisterMetamodPlugins();
             await _funFiles.InstallAsync(cancellation);
             cancellation.ThrowIfCancellationRequested();
             await InstallMapPartsAsync(cancellation);
@@ -96,9 +88,9 @@ public sealed class PackageInstaller {
     }
 
     /// <summary>
-    /// Copies the server-files overlay, compiles the fun plugins, registers them
-    /// and sets up the admin account, for a quick refresh after editing a
-    /// config or plugin source.
+    /// Copies the server-files overlay and our built plugins again and puts the
+    /// Metamod line back into gameinfo.gi, for a quick refresh after a CS2
+    /// update or a config change.
     /// </summary>
     public async Task InstallFunFilesAsync(CancellationToken cancellation) {
         if (!_paths.Package.IsServerInstalled) {
@@ -109,8 +101,6 @@ public sealed class PackageInstaller {
     }
 
     private async Task InstallMapPartsAsync(CancellationToken cancellation) {
-        await _maps.InstallQuakeSoundsAsync(cancellation);
-        cancellation.ThrowIfCancellationRequested();
         await _maps.InstallMapPackAsync(cancellation);
         cancellation.ThrowIfCancellationRequested();
         await _maps.InstallMapPreviewsAsync(cancellation);
