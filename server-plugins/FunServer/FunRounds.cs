@@ -118,6 +118,7 @@ public sealed partial class FunServerPlugin {
         // A frame later the spawned players have their default weapons, which the round replaces.
         Server.NextFrame(() => ApplyFunRound(round));
         ChatToAll($"{ChatColors.Red}{round.Title}{ChatColors.Default} - {round.Description}");
+        CenterToAll("#FFC800", $"FUN ROUND: {round.Title}", round.Description);
         return HookResult.Continue;
     }
 

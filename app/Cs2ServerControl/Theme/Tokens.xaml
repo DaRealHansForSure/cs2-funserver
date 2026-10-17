@@ -175,6 +175,8 @@
     <sys:Double x:Key="SelectMaxWidth">260</sys:Double>
     <sys:Double x:Key="ConfirmWidth">420</sys:Double>
     <sys:Double x:Key="MapDetailsWidth">900</sys:Double>
+    <sys:Double x:Key="PlayerDetailsListHeight">190</sys:Double>
+    <sys:Double x:Key="PlayerDetailsRowHeight">26</sys:Double>
 
     <GridLength x:Key="StatusGap">18</GridLength>
     <GridLength x:Key="RailColumnWidth">80</GridLength>

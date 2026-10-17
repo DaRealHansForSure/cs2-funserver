@@ -141,6 +141,10 @@
             </Border>
         </DataTemplate>
 
+        <DataTemplate DataType="{x:Type stats:PlayerDetailsViewModel}">
+            <stats:PlayerDetailsView />
+        </DataTemplate>
+
         <DataTemplate DataType="{x:Type server:MapDetailsViewModel}">
             <server:MapDetailsView />
         </DataTemplate>

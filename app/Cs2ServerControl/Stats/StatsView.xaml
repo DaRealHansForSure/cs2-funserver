@@ -46,7 +46,7 @@
 
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="1.4*" MinWidth="520" />
+                <ColumnDefinition Width="1.4*" MinWidth="640" />
                 <ColumnDefinition Width="{StaticResource CardGapColumn}" />
                 <ColumnDefinition Width="*" MinWidth="380" />
             </Grid.ColumnDefinitions>
@@ -59,7 +59,10 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
-                    <TextBlock Grid.Row="0" Text="Leaderboard" Style="{StaticResource CardTitleText}" Margin="0,0,0,12" />
+                    <DockPanel Grid.Row="0" Margin="0,0,0,12">
+                        <TextBlock DockPanel.Dock="Right" Text="Click a player for the details" Style="{StaticResource HintText}" VerticalAlignment="Center" />
+                        <TextBlock Text="Leaderboard" Style="{StaticResource CardTitleText}" />
+                    </DockPanel>
                     <Border Grid.Row="1" BorderBrush="{StaticResource CardBorder}" BorderThickness="{StaticResource BorderBottomOne}" Padding="0,0,0,6">
                         <Grid>
                             <Grid.ColumnDefinitions>
@@ -67,6 +70,8 @@
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="60" />
                                 <ColumnDefinition Width="60" />
+                                <ColumnDefinition Width="56" />
+                                <ColumnDefinition Width="56" />
                                 <ColumnDefinition Width="56" />
                                 <ColumnDefinition Width="52" />
                                 <ColumnDefinition Width="44" />
@@ -77,9 +82,11 @@
                             <TextBlock Grid.Column="2" Text="Kills" Style="{StaticResource HeaderCell}" HorizontalAlignment="Right" />
                             <TextBlock Grid.Column="3" Text="Deaths" Style="{StaticResource HeaderCell}" HorizontalAlignment="Right" />
                             <TextBlock Grid.Column="4" Text="K/D" Style="{StaticResource HeaderCell}" HorizontalAlignment="Right" />
-                            <TextBlock Grid.Column="5" Text="Knife" Style="{StaticResource HeaderCell}" HorizontalAlignment="Right" />
-                            <TextBlock Grid.Column="6" Text="HE" Style="{StaticResource HeaderCell}" HorizontalAlignment="Right" />
-                            <TextBlock Grid.Column="7" Text="Best weapon" Style="{StaticResource HeaderCell}" Margin="16,0,0,0" />
+                            <TextBlock Grid.Column="5" Text="HS" Style="{StaticResource HeaderCell}" HorizontalAlignment="Right" />
+                            <TextBlock Grid.Column="6" Text="Streak" Style="{StaticResource HeaderCell}" HorizontalAlignment="Right" ToolTip="Most kills in a row" />
+                            <TextBlock Grid.Column="7" Text="Knife" Style="{StaticResource HeaderCell}" HorizontalAlignment="Right" />
+                            <TextBlock Grid.Column="8" Text="HE" Style="{StaticResource HeaderCell}" HorizontalAlignment="Right" />
+                            <TextBlock Grid.Column="9" Text="Best weapon" Style="{StaticResource HeaderCell}" Margin="16,0,0,0" />
                         </Grid>
                     </Border>
                     <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Focusable="False">
@@ -91,32 +98,41 @@
                                     <DataTemplate>
                                         <Border BorderBrush="{StaticResource ConsoleBorder}" BorderThickness="{StaticResource BorderBottomOne}"
                                                 MinHeight="{StaticResource PlayerRowHeight}">
-                                            <Grid>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="32" />
-                                                    <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="60" />
-                                                    <ColumnDefinition Width="60" />
-                                                    <ColumnDefinition Width="56" />
-                                                    <ColumnDefinition Width="52" />
-                                                    <ColumnDefinition Width="44" />
-                                                    <ColumnDefinition Width="120" />
-                                                </Grid.ColumnDefinitions>
-                                                <TextBlock Grid.Column="0" Text="{Binding Rank}" Foreground="{StaticResource TextTertiary}"
-                                                           FontSize="{StaticResource FontSizeToolbar}" VerticalAlignment="Center" />
-                                                <TextBlock Grid.Column="1" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
-                                                           FontSize="{StaticResource FontSizeToolbar}">
-                                                    <Run Text="{Binding Stats.Name, Mode=OneWay}" />
-                                                    <Run x:Name="BotTag" Text="" FontSize="{StaticResource FontSizeCaption}" Foreground="{StaticResource TextTertiary}" />
-                                                </TextBlock>
-                                                <TextBlock Grid.Column="2" Text="{Binding Stats.Kills}" Style="{StaticResource NumberCell}" />
-                                                <TextBlock Grid.Column="3" Text="{Binding Stats.Deaths}" Style="{StaticResource NumberCell}" />
-                                                <TextBlock Grid.Column="4" Text="{Binding KillDeathText}" Style="{StaticResource NumberCell}" />
-                                                <TextBlock Grid.Column="5" Text="{Binding Stats.KnifeKills}" Style="{StaticResource NumberCell}" />
-                                                <TextBlock Grid.Column="6" Text="{Binding Stats.GrenadeKills}" Style="{StaticResource NumberCell}" />
-                                                <TextBlock Grid.Column="7" Text="{Binding WeaponText}" FontSize="{StaticResource FontSizeToolbar}"
-                                                           Foreground="{StaticResource TextSecondary}" VerticalAlignment="Center" Margin="16,0,0,0" />
-                                            </Grid>
+                                            <Button Style="{StaticResource PlayerRowButton}" Padding="0"
+                                                    Command="{Binding DataContext.ShowPlayerCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}" ToolTip="Details of this player"
+                                                    AutomationProperties.Name="{Binding Stats.Name, StringFormat=Details of {0}}">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="32" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="60" />
+                                                        <ColumnDefinition Width="60" />
+                                                        <ColumnDefinition Width="56" />
+                                                        <ColumnDefinition Width="56" />
+                                                        <ColumnDefinition Width="56" />
+                                                        <ColumnDefinition Width="52" />
+                                                        <ColumnDefinition Width="44" />
+                                                        <ColumnDefinition Width="120" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Text="{Binding Rank}" Foreground="{StaticResource TextTertiary}"
+                                                               FontSize="{StaticResource FontSizeToolbar}" VerticalAlignment="Center" />
+                                                    <TextBlock Grid.Column="1" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                                               FontSize="{StaticResource FontSizeToolbar}">
+                                                        <Run Text="{Binding Stats.Name, Mode=OneWay}" />
+                                                        <Run x:Name="BotTag" Text="" FontSize="{StaticResource FontSizeCaption}" Foreground="{StaticResource TextTertiary}" />
+                                                    </TextBlock>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Stats.Kills}" Style="{StaticResource NumberCell}" />
+                                                    <TextBlock Grid.Column="3" Text="{Binding Stats.Deaths}" Style="{StaticResource NumberCell}" />
+                                                    <TextBlock Grid.Column="4" Text="{Binding KillDeathText}" Style="{StaticResource NumberCell}" />
+                                                    <TextBlock Grid.Column="5" Text="{Binding HeadshotText}" Style="{StaticResource NumberCell}" />
+                                                    <TextBlock Grid.Column="6" Text="{Binding Stats.BestStreak}" Style="{StaticResource NumberCell}" />
+                                                    <TextBlock Grid.Column="7" Text="{Binding Stats.KnifeKills}" Style="{StaticResource NumberCell}" />
+                                                    <TextBlock Grid.Column="8" Text="{Binding Stats.GrenadeKills}" Style="{StaticResource NumberCell}" />
+                                                    <TextBlock Grid.Column="9" Text="{Binding WeaponText}" FontSize="{StaticResource FontSizeToolbar}"
+                                                               Foreground="{StaticResource TextSecondary}" VerticalAlignment="Center" Margin="16,0,0,0" />
+                                                </Grid>
+                                            </Button>
                                         </Border>
                                         <DataTemplate.Triggers>
                                             <DataTrigger Binding="{Binding Stats.IsBot}" Value="True">
