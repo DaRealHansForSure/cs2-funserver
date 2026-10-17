@@ -17,15 +17,21 @@ namespace FunServer;
 public sealed partial class FunServerPlugin {
     private const string DefaultMode = "classic";
 
+    /// <summary>The mode of the running map, read once at map start; the fun parts ask this.</summary>
+    private string _activeMode = DefaultMode;
+
     private void LoadModeConfigs() {
         RegisterListener<Listeners.OnMapStart>(_ => {
+            _activeMode = ReadActiveMode();
             // One frame later, so Valve's own gamemode configs have run.
             Server.NextFrame(RunModeConfigs);
         });
+        _activeMode = ReadActiveMode();
     }
 
+    /// <summary>Also after a fun round: running the configs again puts every rule back.</summary>
     private void RunModeConfigs() {
-        string mode = ReadActiveMode();
+        string mode = _activeMode;
         foreach (string config in ConfigsFor(mode)) {
             if (File.Exists(Path.Combine(ConfigDirectory, config))) {
                 Server.ExecuteCommand($"exec {config}");

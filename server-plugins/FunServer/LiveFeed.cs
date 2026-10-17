@@ -7,6 +7,7 @@ using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Cvars;
 using CounterStrikeSharp.API.Modules.Timers;
+using CounterStrikeSharp.API.Modules.Utils;
 
 namespace FunServer;
 
@@ -67,7 +68,7 @@ public sealed partial class FunServerPlugin {
         Send(packet.ToString());
     }
 
-    private static void AppendPlayerLine(StringBuilder packet, CCSPlayerController player) {
+    private void AppendPlayerLine(StringBuilder packet, CCSPlayerController player) {
         CCSPlayerPawn? pawn = player.PlayerPawn.Value;
         bool isAlive = player.PawnIsAlive && pawn != null;
         var origin = pawn?.AbsOrigin;
@@ -78,10 +79,18 @@ public sealed partial class FunServerPlugin {
 
         // The separators must never show up inside a field.
         string name = player.PlayerName.Replace('|', '/').Replace('\n', '/').Replace('\r', '/');
-        // No hook yet: hooking 0, hook point 0 0 0.
         string line = string.Create(CultureInfo.InvariantCulture,
-            $"\nP|{player.UserId ?? 0}|{name}|{TeamName(player.TeamNum)}|{(isAlive ? 1 : 0)}|{(player.IsBot ? 1 : 0)}|{health}|{Round(origin?.X)}|{Round(origin?.Y)}|{Round(origin?.Z)}|{Round(yaw)}|{stats?.Kills ?? 0}|{stats?.Deaths ?? 0}|{weapon}|0|0|0|0|{GlowField(isAlive ? pawn : null)}");
+            $"\nP|{player.UserId ?? 0}|{name}|{TeamName(player.TeamNum)}|{(isAlive ? 1 : 0)}|{(player.IsBot ? 1 : 0)}|{health}|{Round(origin?.X)}|{Round(origin?.Y)}|{Round(origin?.Z)}|{Round(yaw)}|{stats?.Kills ?? 0}|{stats?.Deaths ?? 0}|{weapon}|{HookField(player)}|{GlowField(isAlive ? pawn : null)}");
         packet.Append(line);
+    }
+
+    /// <summary>Hooking 1 and the point the rope holds, or 0 0 0 0.</summary>
+    private string HookField(CCSPlayerController player) {
+        Vector? point = HookPointOf(player);
+        if (point == null) {
+            return "0|0|0|0";
+        }
+        return string.Create(CultureInfo.InvariantCulture, $"1|{Round(point.X)}|{Round(point.Y)}|{Round(point.Z)}");
     }
 
     /// <summary>

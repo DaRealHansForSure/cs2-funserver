@@ -6,9 +6,9 @@ program: CS2_SERVER_CONTROL.exe. The sister project of the CS 1.6 LAN Fun
 Server, with the same window: live 3D map, server control, bots, maps,
 stats and options.
 
-STATUS: early version. The server side (install, start, stop, modes,
-bots, RCON, live feed plugin) is built; it has not run against a real CS2
-server yet.
+STATUS: early version. Install, start, stop, modes, bots, the live 3D map
+and the fun plugin run on a real CS2 server; Zombie and Deathrun rules and
+Workshop maps follow.
 
 
 WHAT EVERY PC NEEDS
@@ -42,12 +42,32 @@ GETTING STARTED
 MODES
 -----
 
-  Classic Fun   Casual rules with bunny hopping; hook, grab and parachute
-                follow with the plugin.
+  Classic Fun   Casual rules with bunny hopping, hook, grab, parachute and
+                a fun round every few rounds.
   Arms Race     Valve's GunGame: a new weapon with every kill.
-  Deathmatch    Instant respawn.
+  Deathmatch    Instant respawn, with the hook.
   Zombie        Casual rules for now; the infection follows with a plugin.
   Deathrun      Casual rules on deathrun maps; the trapper logic follows.
+
+To change the mode during the party, type !mode in chat: everybody votes
+for 20 seconds by typing the number of a mode.
+
+
+FOR THE PLAYERS (no binds needed)
+---------------------------------
+
+  Hook        Hold F (inspect weapon) while aiming at a wall: a glowing
+              rope pulls you there. Classic and Deathmatch.
+  Parachute   Hold E while falling.
+  Grab        Admins hold E while aiming at a player to lift them, left
+              click throws. As long as nobody is listed in
+              addons\counterstrikesharp\configs\admins.json, everybody is admin.
+  Streaks     Every 5 kills in a row: a gold glow and +50 HP; at 10 also a
+              rocket jump.
+  Fun rounds  Every third round in Classic: knives only, AWP only, low
+              gravity, speed, headshots only, one bullet Deagle, HE war,
+              ghosts or a Juggernaut. The host can force one on the Server
+              screen.
 
 Mode settings live in server\game\csgo\cfg\fun\modes\. Your own changes
 from the window go into local*.cfg files next to them and survive every
