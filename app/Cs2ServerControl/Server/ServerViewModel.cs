@@ -72,10 +72,10 @@ public sealed partial class MapRowViewModel : ObservableObject {
 /// </summary>
 public sealed partial class ServerViewModel : ObservableObject, IScreen {
     public static readonly IReadOnlyList<string> QuickCommands = [
-        "amx_funmode gungame",
+        "fun_mode gungame",
         "bot_kick",
         "sv_restart 1",
-        "amx_glow @ALL pink",
+        "fun_glow @all pink",
     ];
 
     private readonly ServerConnection _connection;
@@ -203,8 +203,8 @@ public sealed partial class ServerViewModel : ObservableObject, IScreen {
 
     /// <summary>
     /// Switches the running server to the picked mode and map at once. The
-    /// mode goes into localinfo before the map change, so fun_modes runs that
-    /// mode's configs on the new map (amx_funmode would pick a random map).
+    /// mode file and game_type/game_mode are set before the map change, so the
+    /// new map starts in that mode and the mode plugin runs its configs there.
     /// </summary>
     [RelayCommand]
     private async Task Apply() {
@@ -222,8 +222,9 @@ public sealed partial class ServerViewModel : ObservableObject, IScreen {
         if (IsModeOrMapDirty && PickedMap != null) {
             string modeId = PickedMode.Mode.Id;
             if (modeId != _connection.ActiveModeId) {
-                await _connection.RunAsync($"localinfo fun_mode {modeId}");
-                await _connection.RunAsync($"mapcyclefile mapcycle_{modeId}.txt");
+                _connection.Process.WriteActiveMode(modeId);
+                await _connection.RunAsync($"game_type {PickedMode.Mode.GameType}; game_mode {PickedMode.Mode.GameModeNumber}");
+                _connection.ActiveModeId = modeId;
             }
             await _connection.RunAsync($"changelevel {PickedMap.Name}");
         }
@@ -246,7 +247,7 @@ public sealed partial class ServerViewModel : ObservableObject, IScreen {
         if (target == null) {
             return;
         }
-        await _connection.RunAsync($"amx_nextmap {target.Name}");
+        await _connection.RunAsync($"nextlevel {target.Name}");
         _connection.NextMap = target.Name;
     }
 

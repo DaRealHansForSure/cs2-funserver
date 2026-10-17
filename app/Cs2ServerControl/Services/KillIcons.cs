@@ -53,13 +53,13 @@ public sealed class KillIcons {
 
     private ImageSource? Load(string spriteName) {
         try {
-            _regions ??= ReadHudRegions(Path.Combine(_paths.CstrikeDir, "sprites", "hud.txt"));
+            _regions ??= ReadHudRegions(Path.Combine(_paths.GameDir, "sprites", "hud.txt"));
             if (!_regions.TryGetValue(spriteName, out HudRegion? region)) {
                 return null;
             }
 
             SpriteSheet? sheet = _sheets.GetOrAdd(region.SheetName, sheetName =>
-                SpriteSheet.Read(Path.Combine(_paths.CstrikeDir, "sprites", sheetName + ".spr")));
+                SpriteSheet.Read(Path.Combine(_paths.GameDir, "sprites", sheetName + ".spr")));
             return sheet?.Cut(region, _tint);
         } catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException) {
             return null;

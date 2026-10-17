@@ -26,12 +26,22 @@ public sealed record MapLibraryEntry(
 public sealed record WaitingMap(string FileName, bool IsArchive);
 
 /// <summary>
-/// Everything the Maps screen lists, read from the files on disk: the .bsp
-/// files in cstrike\maps, the mapcycle of every mode, the nav files,
-/// tools\maps.csv for the map pack and the custom-maps folder.
+/// Everything the Maps screen lists, read from the files on disk: the map
+/// packages (.vpk) in game\csgo\maps, the mapcycle of every mode, loose nav
+/// files, tools\maps.csv for the map pack and the custom-maps folder.
 /// </summary>
 public static class MapLibrary {
     private static readonly string[] ArchiveExtensions = [".zip", ".rar", ".7z"];
+
+    /// <summary>
+    /// The maps folder also holds packages that are no playable map: the
+    /// lobby and vote screens and the cosmetic "_vanity" parts of each map.
+    /// </summary>
+    internal static bool IsPlayableMapPackage(string mapName) {
+        return !mapName.EndsWith("_vanity", StringComparison.OrdinalIgnoreCase)
+            && !mapName.StartsWith("lobby_", StringComparison.OrdinalIgnoreCase)
+            && !mapName.Equals("graphics_settings", StringComparison.OrdinalIgnoreCase);
+    }
 
     public static IReadOnlyList<MapLibraryEntry> Scan(PackagePaths paths) {
         if (!Directory.Exists(paths.MapsDir)) {
@@ -51,23 +61,26 @@ public static class MapLibrary {
 
         IReadOnlySet<string> packMaps = ReadPackMapNames(Path.Combine(paths.ToolsDir, "maps.csv"));
         var entries = new List<MapLibraryEntry>();
-        foreach (string bspFile in Directory.EnumerateFiles(paths.MapsDir, "*.bsp")) {
-            string name = Path.GetFileNameWithoutExtension(bspFile).ToLowerInvariant();
+        foreach (string mapFile in Directory.EnumerateFiles(paths.MapsDir, "*.vpk")) {
+            string name = Path.GetFileNameWithoutExtension(mapFile).ToLowerInvariant();
+            if (!IsPlayableMapPackage(name)) {
+                continue;
+            }
             NavFileState nav = NavFileScanner.Check(paths, name);
             entries.Add(new MapLibraryEntry(
                 name,
                 SourceOf(name, packMaps),
                 modesByMap.TryGetValue(name, out List<string>? modes) ? modes : [],
                 nav.IsUsable,
-                new FileInfo(bspFile).Length,
+                new FileInfo(mapFile).Length,
                 nav.IsOutdated,
-                MapResources.FindMissing(bspFile, paths.CstrikeDir)));
+                MapResources.FindMissing(mapFile, paths.GameDir)));
         }
         return entries.OrderBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase).ToList();
     }
 
     /// <summary>
-    /// Loose .bsp files that are not installed yet, and every archive: what
+    /// Loose map packages (.vpk) that are not installed yet, and every archive: what
     /// an archive holds is only known after unpacking, which Update maps does.
     /// </summary>
     public static IReadOnlyList<WaitingMap> ScanCustomMaps(string customMapsDir, string mapsDir) {
@@ -83,8 +96,8 @@ public static class MapLibrary {
                 waiting.Add(new WaitingMap(fileName, IsArchive: true));
                 continue;
             }
-            bool isNewBsp = extension == ".bsp" && !File.Exists(Path.Combine(mapsDir, fileName));
-            if (isNewBsp) {
+            bool isNewMap = extension == ".vpk" && !File.Exists(Path.Combine(mapsDir, fileName));
+            if (isNewMap) {
                 waiting.Add(new WaitingMap(fileName, IsArchive: false));
             }
         }

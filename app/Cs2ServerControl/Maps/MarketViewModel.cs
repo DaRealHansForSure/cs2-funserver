@@ -376,7 +376,7 @@ public sealed partial class MarketViewModel : ObservableObject {
     private void ApplyInstalledState(MarketRowViewModel row, HashSet<string> installedModIds, HashSet<string> marketModIds) {
         string modId = row.Map.ModId.ToString(CultureInfo.InvariantCulture);
         row.IsRemovable = marketModIds.Contains(modId);
-        row.IsInstalled = installedModIds.Contains(modId) || File.Exists(_connection.Paths.BspFile(row.Map.Name));
+        row.IsInstalled = installedModIds.Contains(modId) || File.Exists(_connection.Paths.MapFile(row.Map.Name));
     }
 
     private void OnInstallChanged(object? sender, PropertyChangedEventArgs e) {

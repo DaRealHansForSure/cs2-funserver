@@ -31,7 +31,7 @@ internal sealed class MapInstaller {
         _log = log;
         _downloads = downloads;
         _extractor = extractor;
-        _copier = new MapContentCopier(paths.CstrikeDir);
+        _copier = new MapContentCopier(paths.GameDir);
     }
 
     /// <summary>
@@ -60,7 +60,7 @@ internal sealed class MapInstaller {
                 continue;
             }
 
-            string targetPath = Path.Combine(_paths.CstrikeDir, "sound", sound.TargetName);
+            string targetPath = Path.Combine(_paths.GameDir, "sound", sound.TargetName);
             if (File.Exists(targetPath)) {
                 installedCount++;
                 continue;
@@ -347,7 +347,7 @@ internal sealed class MapInstaller {
         List<string> playableMaps = [];
         foreach (string bspFile in FileTree.FilesWithExtension(_paths.MapsDir, ".bsp", recursive: false)) {
             string mapName = Path.GetFileNameWithoutExtension(bspFile);
-            IReadOnlyList<string> missing = MapResources.FindMissing(bspFile, _paths.CstrikeDir);
+            IReadOnlyList<string> missing = MapResources.FindMissing(bspFile, _paths.GameDir);
             if (missing.Count > 0) {
                 _log.Problem($"{mapName} left out of the map lists, it needs {string.Join(", ", missing)}.");
                 continue;
@@ -363,7 +363,7 @@ internal sealed class MapInstaller {
         }
 
         // The engine starts with mapcycle.txt, which therefore mirrors classic.
-        File.Copy(_paths.Package.MapCycleFile("classic"), Path.Combine(_paths.CstrikeDir, "mapcycle.txt"), overwrite: true);
+        File.Copy(_paths.Package.MapCycleFile("classic"), Path.Combine(_paths.GameDir, "mapcycle.txt"), overwrite: true);
     }
 
     /// <summary>One map or sound pack going wrong must not stop the others; a cancel still does.</summary>

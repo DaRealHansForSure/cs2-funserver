@@ -20,7 +20,7 @@ public sealed record NavFileState(string MapName, bool Exists, bool IsOutdated =
 /// </summary>
 public static partial class NavFileScanner {
     public static IReadOnlyList<NavFileState> Scan(PackagePaths paths) {
-        return MapCycleReader.ReadAllCycles(paths.CstrikeDir)
+        return MapCycleReader.ReadAllCycles(paths.GameDir)
             .Select(map => Check(paths, map))
             .ToList();
     }
@@ -30,7 +30,7 @@ public static partial class NavFileScanner {
         if (!File.Exists(navFile)) {
             return new NavFileState(mapName, Exists: false);
         }
-        return new NavFileState(mapName, Exists: true, IsOutdated(navFile, paths.BspFile(mapName)));
+        return new NavFileState(mapName, Exists: true, IsOutdated(navFile, paths.MapFile(mapName)));
     }
 
     internal static bool IsOutdated(string navFile, string bspFile) {

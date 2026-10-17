@@ -12,10 +12,10 @@ internal sealed class InstallPaths {
     public PackagePaths Package { get; }
 
     public string ServerDir => Package.ServerDir;
-    public string CstrikeDir => Package.CstrikeDir;
+    public string GameDir => Package.GameDir;
     public string MapsDir => Package.MapsDir;
     public string PreviewsDir => Package.PreviewsDir;
-    public string HldsExe => Package.HldsExe;
+    public string Cs2Exe => Package.Cs2Exe;
 
     public string OverlayDir => Path.Combine(Package.RootDir, "server-files", "cstrike");
     public string OwnMapsDir => Path.Combine(Package.RootDir, "custom-maps");
@@ -27,9 +27,9 @@ internal sealed class InstallPaths {
     // Maps installed from the market; created at runtime, not part of the package.
     public string MarketListFile => Path.Combine(Package.ToolsDir, "market.csv");
 
-    public string LibListFile => Path.Combine(CstrikeDir, "liblist.gam");
-    public string GameInitFile => Path.Combine(CstrikeDir, "game_init.cfg");
-    public string AddonsDir => Path.Combine(CstrikeDir, "addons");
+    public string LibListFile => Path.Combine(GameDir, "liblist.gam");
+    public string GameInitFile => Path.Combine(GameDir, "game_init.cfg");
+    public string AddonsDir => Path.Combine(GameDir, "addons");
     public string MetamodDir => Path.Combine(AddonsDir, "metamod");
     public string MetamodPluginsFile => Path.Combine(MetamodDir, "plugins.ini");
     public string AmxDir => Path.Combine(AddonsDir, "amxmodx");

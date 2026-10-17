@@ -27,7 +27,7 @@ public sealed class ThumbnailGenerator {
 
     /// <summary>Must run on the UI thread: WPF renders the bitmap there. False when the map could not be read.</summary>
     public async Task<bool> GenerateAsync(string mapName) {
-        string bspFile = _paths.BspFile(mapName);
+        string bspFile = _paths.MapFile(mapName);
         if (!File.Exists(bspFile)) {
             return false;
         }

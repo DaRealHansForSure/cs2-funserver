@@ -439,7 +439,7 @@
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
-                        <TextBox Grid.Column="0" Style="{StaticResource RconInput}" Tag="e.g. amx_rocket Ulf"
+                        <TextBox Grid.Column="0" Style="{StaticResource RconInput}" Tag="e.g. fun_rocket Ulf"
                                  Text="{Binding CommandText, UpdateSourceTrigger=PropertyChanged}"
                                  AutomationProperties.Name="RCON command">
                             <TextBox.InputBindings>

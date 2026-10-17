@@ -20,7 +20,7 @@ internal sealed class FunFilesInstaller {
     public async Task InstallAsync(CancellationToken cancellation) {
         _log.Step("Fun configs and plugins");
 
-        await Task.Run(() => FileTree.CopyContents(_paths.OverlayDir, _paths.CstrikeDir), cancellation);
+        await Task.Run(() => FileTree.CopyContents(_paths.OverlayDir, _paths.GameDir), cancellation);
 
         await BuildFunPluginsAsync(cancellation);
         UpdateAmxPluginList();

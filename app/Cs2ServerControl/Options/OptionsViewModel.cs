@@ -195,7 +195,7 @@ public sealed partial class OptionsViewModel : ObservableObject, IScreen {
             case "package":
                 return _connection.Paths.RootDir;
             case "logs":
-                return _connection.Paths.AmxLogsDir;
+                return _connection.Paths.PluginLogsDir;
             case "settings":
                 return Path.GetDirectoryName(AppSettings.SettingsFile);
             default:

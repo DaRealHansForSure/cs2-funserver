@@ -24,7 +24,7 @@ public sealed partial class RoundActionsViewModel : ObservableObject {
         _nextFunRound = FunRounds[0];
     }
 
-    // Ids match amx_funround in fun_rounds.sma.
+    // Ids match fun_funround in the FunServer plugin.
     public IReadOnlyList<FunRound> FunRounds { get; } = [
         new("random", "Random"),
         new("knives", "Knives only"),
@@ -40,7 +40,7 @@ public sealed partial class RoundActionsViewModel : ObservableObject {
 
     [RelayCommand]
     private Task ForceFunRound() {
-        return _connection.RunAsync($"amx_funround {NextFunRound.Id}");
+        return _connection.RunAsync($"fun_funround {NextFunRound.Id}");
     }
 
     [RelayCommand]
@@ -69,6 +69,6 @@ public sealed partial class RoundActionsViewModel : ObservableObject {
             return;
         }
         Message = "";
-        await _connection.RunAsync($"amx_say \"{text}\"");
+        await _connection.RunAsync($"say \"{text}\"");
     }
 }

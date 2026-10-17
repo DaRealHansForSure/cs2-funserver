@@ -220,7 +220,7 @@ public sealed partial class ServerConnection : ObservableObject, IDisposable {
             return;
         }
 
-        bool isPreferredInstalled = preferredMap != null && System.IO.File.Exists(Paths.BspFile(preferredMap));
+        bool isPreferredInstalled = preferredMap != null && System.IO.File.Exists(Paths.MapFile(preferredMap));
         string? startMap = isPreferredInstalled ? preferredMap : Process.FirstMapOfMode(modeId);
         if (startMap == null) {
             AddConsoleLine(new ConsoleLine($"No installed map for mode {modeId}. Run Update maps on the Install screen.", ConsoleLineKind.Normal));
@@ -358,10 +358,11 @@ public sealed partial class ServerConnection : ObservableObject, IDisposable {
 
             IReadOnlyDictionary<string, string>? rules = await _query.QueryRulesAsync(QueryEndpoint);
             if (rules != null) {
-                if (rules.TryGetValue("amx_nextmap", out string? nextMap) && nextMap.Length > 0) {
+                // fun_nextmap and fun_timeleft come from the FunServer plugin, which marks them for the server browser.
+                if (rules.TryGetValue("fun_nextmap", out string? nextMap) && nextMap.Length > 0) {
                     NextMap = nextMap;
                 }
-                TimeLeft = rules.TryGetValue("amx_timeleft", out string? timeLeft) ? timeLeft : null;
+                TimeLeft = rules.TryGetValue("fun_timeleft", out string? timeLeft) ? timeLeft : null;
             }
         } finally {
             _isPolling = false;
@@ -369,28 +370,28 @@ public sealed partial class ServerConnection : ObservableObject, IDisposable {
     }
 
     /// <summary>
-    /// The only RCON calls the app makes on its own, once per server start:
-    /// silence the engine's RCON echo (a server started outside this window lacks
-    /// the command line switch) and read the mode when nothing told it yet.
+    /// Once per server start: when nothing told the window the mode yet (a
+    /// server started outside it), the mode file says which one runs. No RCON
+    /// call, because the server writes every RCON command into its logs.
     /// </summary>
-    private async Task AttachSetupAsync() {
+    private Task AttachSetupAsync() {
         _didAttachSetup = true;
-        Process.EnsureFastDownload();
-        await QueryAsync("sv_rcon_condebug 0");
         if (ActiveModeId != null) {
-            return;
+            return Task.CompletedTask;
         }
-
-        string? localInfo = await QueryAsync("localinfo");
-        Match mode = localInfo == null ? Match.Empty : LocalInfoModePattern().Match(localInfo);
-        if (mode.Success) {
-            ActiveModeId = mode.Groups["mode"].Value;
+        try {
+            if (System.IO.File.Exists(Paths.ActiveModeFile)) {
+                string modeId = System.IO.File.ReadAllText(Paths.ActiveModeFile).Trim();
+                if (modeId.Length > 0) {
+                    ActiveModeId = modeId;
+                }
+            }
+        } catch (System.IO.IOException) {
+            // Unknown mode; the Server screen then shows none as active.
         }
+        return Task.CompletedTask;
     }
 
     [GeneratedRegex(@"Active mode:\s*(?<mode>\w+)")]
     private static partial Regex ActiveModePattern();
-
-    [GeneratedRegex(@"fun_mode\W+(?<mode>[a-z]+)")]
-    private static partial Regex LocalInfoModePattern();
 }

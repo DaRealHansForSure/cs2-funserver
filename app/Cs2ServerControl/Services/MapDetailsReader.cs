@@ -23,7 +23,7 @@ public static partial class MapDetailsReader {
 
     private static IReadOnlyList<MapStat> Read(PackagePaths paths, string mapName, BspWireframe? wireframe) {
         var stats = new List<MapStat>();
-        string bspFile = paths.BspFile(mapName);
+        string bspFile = paths.MapFile(mapName);
 
         stats.Add(new MapStat("Modes", ModesOf(paths, mapName)));
 

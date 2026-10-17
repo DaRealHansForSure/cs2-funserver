@@ -30,8 +30,8 @@ public sealed class NavBuilder {
 
     public bool IsAvailable => File.Exists(HelperConfigFile) && File.Exists(HelperPluginsFile) && _paths.IsServerInstalled;
 
-    private string HelperConfigFile => Path.Combine(_paths.CstrikeDir, "navbuild.cfg");
-    private string HelperPluginsFile => Path.Combine(_paths.CstrikeDir, "addons", "metamod", "plugins_navbuild.ini");
+    private string HelperConfigFile => Path.Combine(_paths.GameDir, "navbuild.cfg");
+    private string HelperPluginsFile => Path.Combine(_paths.GameDir, "addons", "metamod", "plugins_navbuild.ini");
 
     /// <summary>
     /// Builds the .nav of one map; "replace" deletes an existing one first,
@@ -40,7 +40,7 @@ public sealed class NavBuilder {
     public async Task<bool> BuildAsync(string mapName, bool replace, CancellationToken cancellation = default) {
         // The helper would stop at an invisible engine error box and only
         // the timeout would end it.
-        if (MapResources.FindMissing(_paths.BspFile(mapName), _paths.CstrikeDir).Count > 0) {
+        if (MapResources.FindMissing(_paths.MapFile(mapName), _paths.GameDir).Count > 0) {
             return false;
         }
 
@@ -54,7 +54,7 @@ public sealed class NavBuilder {
             DateTime startedAt = DateTime.UtcNow;
 
             // On an invisible desktop: its console window must never take the focus.
-            helper = HiddenDesktopLauncher.Start(_paths.HldsExe,
+            helper = HiddenDesktopLauncher.Start(_paths.Cs2Exe,
                 string.Join(' ',
                     "-console -game cstrike",
                     $"-port {HelperPort} +ip 127.0.0.1 +maxplayers 2 +sv_lan 1",

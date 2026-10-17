@@ -1,27 +1,28 @@
+using System.Buffers.Binary;
+using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using System.Text.RegularExpressions;
 
 namespace Cs2ServerControl.Services;
 
 public sealed class RconException(string message) : Exception(message);
 
 /// <summary>
-/// GoldSrc RCON over UDP: "challenge rcon" for a number, then
-/// "rcon number "password" command". Long answers come in several packets,
-/// so everything that arrives within 150 ms after the first packet is joined.
-/// One call at a time, because the challenge belongs to one socket exchange.
+/// Source RCON over TCP, which CS2 speaks on its game port: one login with
+/// the password, then commands over the open connection. A long answer
+/// comes in several packets, so every command is followed by an empty
+/// "mirror" packet; the server answers in order, so its echo marks the end.
+/// One call at a time, because the answers share the one connection.
 /// </summary>
 public sealed class RconClient {
-    private static readonly TimeSpan ChallengeTimeout = TimeSpan.FromSeconds(2);
-    // Commands without console output (setting a cvar) get no reply packet at
-    // all, so a quiet server after a valid challenge means "done", not "gone".
-    private static readonly TimeSpan CommandReplyWait = TimeSpan.FromMilliseconds(500);
-    private static readonly TimeSpan CollectWindow = TimeSpan.FromMilliseconds(150);
+    private static readonly TimeSpan ConnectTimeout = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan ReplyTimeout = TimeSpan.FromSeconds(3);
 
     private readonly SemaphoreSlim _oneAtATime = new(1, 1);
-    private string? _challenge;
+    private TcpClient? _client;
+    private NetworkStream? _stream;
+    private int _nextRequestId = 1;
 
     public IPEndPoint? Server { get; set; }
     public string Password { get; set; } = "";
@@ -38,26 +39,16 @@ public sealed class RconClient {
 
         await _oneAtATime.WaitAsync(cancellation);
         try {
-            using var client = new UdpClient(Server.AddressFamily);
-            _challenge ??= await RequestChallengeAsync(client, cancellation);
-
-            string answer = await ExecuteAsync(client, command, cancellation);
-            if (RconReply.IsBadChallenge(answer)) {
-                // The challenge changes when the server restarts, ask once more.
-                _challenge = await RequestChallengeAsync(client, cancellation);
-                answer = await ExecuteAsync(client, command, cancellation);
-            }
-            if (RconReply.IsBadPassword(answer)) {
-                throw new RconException("The server refused the RCON password. Restart the server from this window.");
-            }
+            NetworkStream stream = await ConnectAsync(cancellation);
+            string answer = await ExecuteAsync(stream, command, cancellation);
             SetConnected(true);
             return answer.TrimEnd();
-        } catch (SocketException exception) {
-            _challenge = null;
+        } catch (Exception exception) when (exception is SocketException or IOException or OperationCanceledException && !cancellation.IsCancellationRequested) {
+            Disconnect();
             SetConnected(false);
-            throw new RconException($"The server does not answer ({exception.SocketErrorCode}).");
+            throw new RconException("The server does not answer RCON requests. Is it running?");
         } catch (RconException) {
-            _challenge = null;
+            Disconnect();
             SetConnected(false);
             throw;
         } finally {
@@ -65,10 +56,78 @@ public sealed class RconClient {
         }
     }
 
-    /// <summary>Forgets the challenge, for example after the server restarted.</summary>
+    /// <summary>Drops the connection, for example after the server restarted or the password changed.</summary>
     public void Reset() {
-        _challenge = null;
+        Disconnect();
         SetConnected(false);
+    }
+
+    private async Task<NetworkStream> ConnectAsync(CancellationToken cancellation) {
+        if (_stream != null && _client is { Connected: true }) {
+            return _stream;
+        }
+        Disconnect();
+
+        var client = new TcpClient(Server!.AddressFamily);
+        using (var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellation)) {
+            timeout.CancelAfter(ConnectTimeout);
+            await client.ConnectAsync(Server, timeout.Token);
+        }
+        _client = client;
+        _stream = client.GetStream();
+
+        int loginId = NextId();
+        // A zero byte would end the password early; the protocol has no escaping.
+        await SourceRconPacket.WriteAsync(_stream, loginId, SourceRconPacket.Auth, Password.Replace("\0", ""), cancellation);
+        while (true) {
+            SourceRconPacket reply = await ReadWithTimeoutAsync(_stream, cancellation);
+            if (reply.Type != SourceRconPacket.AuthResponse) {
+                // The server sends an empty value packet before the login answer.
+                continue;
+            }
+            if (reply.Id == SourceRconPacket.LoginFailedId) {
+                throw new RconException("The server refused the RCON password. Restart the server from this window.");
+            }
+            return _stream;
+        }
+    }
+
+    private async Task<string> ExecuteAsync(NetworkStream stream, string command, CancellationToken cancellation) {
+        int commandId = NextId();
+        int mirrorId = NextId();
+        await SourceRconPacket.WriteAsync(stream, commandId, SourceRconPacket.ExecCommand, command, cancellation);
+        await SourceRconPacket.WriteAsync(stream, mirrorId, SourceRconPacket.ResponseValue, "", cancellation);
+
+        var answer = new StringBuilder();
+        while (true) {
+            SourceRconPacket reply = await ReadWithTimeoutAsync(stream, cancellation);
+            if (reply.Id == mirrorId) {
+                return answer.ToString();
+            }
+            if (reply.Id == commandId) {
+                answer.Append(reply.Body);
+            }
+        }
+    }
+
+    private static async Task<SourceRconPacket> ReadWithTimeoutAsync(NetworkStream stream, CancellationToken cancellation) {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
+        timeout.CancelAfter(ReplyTimeout);
+        return await SourceRconPacket.ReadAsync(stream, timeout.Token);
+    }
+
+    private int NextId() {
+        // Positive and never -1, which the server uses for a failed login.
+        int id = _nextRequestId;
+        _nextRequestId = _nextRequestId >= int.MaxValue - 1 ? 1 : _nextRequestId + 1;
+        return id;
+    }
+
+    private void Disconnect() {
+        _stream?.Dispose();
+        _client?.Dispose();
+        _stream = null;
+        _client = null;
     }
 
     private void SetConnected(bool isConnected) {
@@ -78,96 +137,74 @@ public sealed class RconClient {
         IsConnected = isConnected;
         ConnectionChanged?.Invoke(this, EventArgs.Empty);
     }
+}
 
-    private async Task<string> RequestChallengeAsync(UdpClient client, CancellationToken cancellation) {
-        await SendPacketAsync(client, "challenge rcon\n", cancellation);
-        string reply = await ReceiveAllAsync(client, ChallengeTimeout, silenceIsAnswer: false, cancellation);
+/// <summary>
+/// One Source RCON packet: little endian size, id and type, then the body
+/// and two zero bytes. Separate from the client so the tests reach it
+/// without a socket.
+/// </summary>
+internal readonly record struct SourceRconPacket(int Id, int Type, string Body) {
+    public const int ResponseValue = 0;
+    public const int ExecCommand = 2;
+    public const int AuthResponse = 2;
+    public const int Auth = 3;
+    public const int LoginFailedId = -1;
 
-        string? challenge = RconReply.ReadChallenge(reply);
-        if (challenge == null) {
-            throw new RconException("The server does not answer RCON requests. Is it running?");
+    // The server rejects bigger packets; long commands are not something the window sends.
+    private const int MaxPacketSize = 4096;
+
+    public static byte[] Encode(int id, int type, string body) {
+        byte[] bodyBytes = Encoding.UTF8.GetBytes(body);
+        int size = 4 + 4 + bodyBytes.Length + 2;
+        byte[] packet = new byte[4 + size];
+        BinaryPrimitives.WriteInt32LittleEndian(packet.AsSpan(0), size);
+        BinaryPrimitives.WriteInt32LittleEndian(packet.AsSpan(4), id);
+        BinaryPrimitives.WriteInt32LittleEndian(packet.AsSpan(8), type);
+        bodyBytes.CopyTo(packet, 12);
+        return packet;
+    }
+
+    /// <summary>Reads one packet from its size and payload; null when the bytes are no packet.</summary>
+    public static SourceRconPacket? Decode(ReadOnlySpan<byte> payload) {
+        if (payload.Length < 10) {
+            return null;
         }
-        return challenge;
-    }
-
-    private async Task<string> ExecuteAsync(UdpClient client, string command, CancellationToken cancellation) {
-        // A quote would end the password, the engine has no escaping for it.
-        string password = Password.Replace("\"", "");
-        await SendPacketAsync(client, $"rcon {_challenge} \"{password}\" {command}\n", cancellation);
-        return await ReceiveAllAsync(client, CommandReplyWait, silenceIsAnswer: true, cancellation);
-    }
-
-    private async Task SendPacketAsync(UdpClient client, string text, CancellationToken cancellation) {
-        byte[] payload = Encoding.UTF8.GetBytes(text);
-        byte[] packet = [0xFF, 0xFF, 0xFF, 0xFF, .. payload];
-        await client.SendAsync(packet, Server!, cancellation);
-    }
-
-    private static async Task<string> ReceiveAllAsync(UdpClient client, TimeSpan firstWait, bool silenceIsAnswer, CancellationToken cancellation) {
-        var answer = new StringBuilder();
-        TimeSpan waitFor = firstWait;
-
-        while (true) {
-            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
-            timeout.CancelAfter(waitFor);
-            try {
-                UdpReceiveResult result = await client.ReceiveAsync(timeout.Token);
-                answer.Append(RconReply.ReadPacketText(result.Buffer));
-                waitFor = CollectWindow;
-            } catch (OperationCanceledException) when (!cancellation.IsCancellationRequested) {
-                if (answer.Length == 0 && !silenceIsAnswer) {
-                    throw new RconException("The server did not answer within 2 seconds.");
-                }
-                return answer.ToString();
-            }
+        int id = BinaryPrimitives.ReadInt32LittleEndian(payload);
+        int type = BinaryPrimitives.ReadInt32LittleEndian(payload[4..]);
+        ReadOnlySpan<byte> body = payload[8..];
+        int end = body.IndexOf((byte)0);
+        if (end < 0) {
+            end = body.Length;
         }
+        return new SourceRconPacket(id, type, Encoding.UTF8.GetString(body[..end]));
+    }
+
+    public static async Task WriteAsync(Stream stream, int id, int type, string body, CancellationToken cancellation) {
+        byte[] packet = Encode(id, type, body);
+        if (packet.Length > MaxPacketSize) {
+            throw new RconException("The command is too long for RCON.");
+        }
+        await stream.WriteAsync(packet, cancellation);
+    }
+
+    public static async Task<SourceRconPacket> ReadAsync(Stream stream, CancellationToken cancellation) {
+        byte[] sizeBytes = new byte[4];
+        await stream.ReadExactlyAsync(sizeBytes, cancellation);
+        int size = BinaryPrimitives.ReadInt32LittleEndian(sizeBytes);
+        if (size < 10 || size > MaxPacketSize * 4) {
+            throw new IOException($"Not an RCON packet (size {size}).");
+        }
+        byte[] payload = new byte[size];
+        await stream.ReadExactlyAsync(payload, cancellation);
+        return Decode(payload) ?? throw new IOException("Not an RCON packet.");
     }
 }
 
-/// <summary>Parsing of RCON replies, separate so the tests reach it without a socket.</summary>
-internal static partial class RconReply {
-    public static string? ReadChallenge(string reply) {
-        Match match = ChallengePattern().Match(reply);
-        if (!match.Success) {
-            return null;
-        }
-        return match.Groups["number"].Value;
-    }
-
-    public static bool IsBadChallenge(string reply) {
-        return reply.Contains("Bad challenge", StringComparison.OrdinalIgnoreCase);
-    }
-
-    public static bool IsBadPassword(string reply) {
-        return reply.Contains("Bad rcon_password", StringComparison.OrdinalIgnoreCase);
-    }
-
-    /// <summary>
-    /// Strips the four 0xFF header bytes and the 'l' print marker the engine
-    /// puts in front of console output, plus trailing zero bytes.
-    /// </summary>
-    public static string ReadPacketText(byte[] packet) {
-        int start = 0;
-        while (start < packet.Length && start < 4 && packet[start] == 0xFF) {
-            start++;
-        }
-        if (start == 4 && start < packet.Length && packet[start] == (byte)'l') {
-            start++;
-        }
-
-        int end = packet.Length;
-        while (end > start && packet[end - 1] == 0) {
-            end--;
-        }
-        return Encoding.UTF8.GetString(packet, start, end - start);
-    }
-
+/// <summary>Splitting of RCON replies into console lines.</summary>
+internal static class RconReply {
     /// <summary>Splits a reply into console lines without empty lines.</summary>
     public static IReadOnlyList<string> SplitLines(string reply) {
         return reply.Replace("\r", "").Split('\n').Select(line => line.TrimEnd()).Where(line => line.Length > 0).ToList();
     }
-
-
-    [GeneratedRegex(@"challenge rcon (?<number>\d+)")]
-    private static partial Regex ChallengePattern();
 }

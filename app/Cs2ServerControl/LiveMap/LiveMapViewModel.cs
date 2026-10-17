@@ -412,7 +412,7 @@ public sealed partial class LiveMapViewModel : ObservableObject, IScreen {
         }
     }
 
-    // Colors amx_glow knows (fun_admincmds.sma).
+    // Colors fun_glow knows (the FunServer plugin).
     public IReadOnlyList<string> GlowColors { get; } = ["red", "green", "blue", "yellow", "pink", "white"];
 
     [ObservableProperty]
@@ -421,7 +421,7 @@ public sealed partial class LiveMapViewModel : ObservableObject, IScreen {
     // The player fun commands run at once: they act on the game in progress.
     [RelayCommand]
     private Task Glow() {
-        return RunOnSelected($"amx_glow #{{0}} {GlowColor}");
+        return RunOnSelected($"fun_glow #{{0}} {GlowColor}");
     }
 
     /// <summary>The context menu picks the color and glows in one step.</summary>
@@ -430,30 +430,30 @@ public sealed partial class LiveMapViewModel : ObservableObject, IScreen {
         if (color != "off") {
             GlowColor = color;
         }
-        return RunOnSelected($"amx_glow #{{0}} {color}");
+        return RunOnSelected($"fun_glow #{{0}} {color}");
     }
 
     [RelayCommand]
     private Task Rocket() {
-        return RunOnSelected("amx_rocket #{0}");
+        return RunOnSelected("fun_rocket #{0}");
     }
 
     [RelayCommand]
     private Task Godmode() {
-        return RunOnSelected("amx_godmode #{0} 1");
+        return RunOnSelected("fun_godmode #{0} 1");
     }
 
     [RelayCommand]
     private Task Noclip() {
-        return RunOnSelected("amx_noclip #{0} 1");
+        return RunOnSelected("fun_noclip #{0} 1");
     }
 
     /// <summary>Glow, godmode and noclip off again in one go.</summary>
     [RelayCommand]
     private async Task ResetFun() {
-        await RunOnSelected("amx_glow #{0} off");
-        await RunOnSelected("amx_godmode #{0} 0");
-        await RunOnSelected("amx_noclip #{0} 0");
+        await RunOnSelected("fun_glow #{0} off");
+        await RunOnSelected("fun_godmode #{0} 0");
+        await RunOnSelected("fun_noclip #{0} 0");
     }
 
     private async Task RunOnSelected(string commandFormat) {
@@ -468,7 +468,7 @@ public sealed partial class LiveMapViewModel : ObservableObject, IScreen {
         if (SelectedPlayer == null) {
             return;
         }
-        await _connection.RunAsync($"amx_slay #{SelectedPlayer.UserId}");
+        await _connection.RunAsync($"fun_slay #{SelectedPlayer.UserId}");
     }
 
     [RelayCommand]
@@ -480,7 +480,7 @@ public sealed partial class LiveMapViewModel : ObservableObject, IScreen {
         if (!await _dialogs.ConfirmAsync("Kick", $"Really kick {player.Name}?", "Kick")) {
             return;
         }
-        await _connection.RunAsync($"kick #{player.UserId}");
+        await _connection.RunAsync($"kickid {player.UserId}");
     }
 
     partial void OnIsTopViewChanged(bool value) {
@@ -775,7 +775,7 @@ public sealed partial class LiveMapViewModel : ObservableObject, IScreen {
 
         MapName = mapName;
         UpdateTitle();
-        string bspFile = _connection.Paths.BspFile(mapName);
+        string bspFile = _connection.Paths.MapFile(mapName);
         if (!File.Exists(bspFile)) {
             Wireframe = null;
             ViewportMessage = $"{mapName}.bsp not found";

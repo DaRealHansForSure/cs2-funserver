@@ -41,7 +41,7 @@ internal sealed class ServerComponentsInstaller {
             _log.Note($"SteamCMD run {attempt} of {InstallComponents.HldsInstallAttempts} (takes a few minutes the first time) ...");
             await HiddenProcess.RunAsync(_paths.SteamCmdExe, arguments, _paths.SteamCmdDir, _log.Note, cancellation);
 
-            if (File.Exists(_paths.HldsExe) && File.Exists(_paths.LibListFile)) {
+            if (File.Exists(_paths.Cs2Exe) && File.Exists(_paths.LibListFile)) {
                 _log.Note("HLDS is installed.");
                 CopySteamClientFiles();
                 return;
@@ -166,7 +166,7 @@ internal sealed class ServerComponentsInstaller {
         if (profileFile == null) {
             throw new InstallException("BotProfile.db not found in the zBot profile archive.");
         }
-        await Task.Run(() => FileTree.CopyContents(Path.GetDirectoryName(profileFile)!, _paths.CstrikeDir), cancellation);
+        await Task.Run(() => FileTree.CopyContents(Path.GetDirectoryName(profileFile)!, _paths.GameDir), cancellation);
 
         // Has to run after the ReGameDLL step, see ConfigEdits.EnableZBot.
         List<string> gameInitLines = FileTree.ReadLines(_paths.GameInitFile);
@@ -183,7 +183,7 @@ internal sealed class ServerComponentsInstaller {
             throw new InstallException("amxmodx_mm.dll is missing, AMX Mod X is not installed correctly.");
         }
 
-        string pluginLine = ConfigEdits.MetamodPluginLine(_paths.CstrikeDir, amxModule);
+        string pluginLine = ConfigEdits.MetamodPluginLine(_paths.GameDir, amxModule);
         _log.Note(pluginLine["win32 ".Length..]);
         FileTree.WriteLines(_paths.MetamodPluginsFile, [pluginLine]);
     }

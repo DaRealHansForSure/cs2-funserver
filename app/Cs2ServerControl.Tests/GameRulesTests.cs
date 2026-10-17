@@ -13,7 +13,7 @@ public class GameRulesTests : IDisposable {
 
     public GameRulesTests() {
         _paths = new PackagePaths(_rootDir);
-        Directory.CreateDirectory(Path.Combine(_paths.CstrikeDir, "modes"));
+        Directory.CreateDirectory(Path.GetDirectoryName(_paths.ModeConfigFile("base"))!);
         Directory.CreateDirectory(_paths.ToolsDir);
         File.WriteAllLines(_paths.ModeConfigFile("base"), ["mp_roundtime 3", "mp_buytime 0.5", "mp_friendlyfire 0"]);
         File.WriteAllLines(_paths.ModeConfigFile("classic"), ["// classic", "mp_roundtime 2.5"]);

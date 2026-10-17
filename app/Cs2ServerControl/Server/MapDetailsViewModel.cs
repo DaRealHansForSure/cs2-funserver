@@ -63,7 +63,7 @@ public sealed partial class MapDetailsViewModel : ModalViewModel {
 
     private async Task LoadAsync() {
         BspWireframe? wireframe = null;
-        string bspFile = _connection.Paths.BspFile(MapName);
+        string bspFile = _connection.Paths.MapFile(MapName);
         try {
             if (File.Exists(bspFile)) {
                 wireframe = await BspWireframeLoader.LoadAsync(bspFile);

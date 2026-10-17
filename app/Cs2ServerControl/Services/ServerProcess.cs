@@ -7,13 +7,14 @@ using System.Net.Sockets;
 
 namespace Cs2ServerControl.Services;
 
-/// <summary>
-/// Starts and stops hlds.exe and the fast download server, or attaches to an
-/// hlds.exe of this package that is already running (started by hand or by an earlier window).
-/// </summary>
 /// <summary>One inbound firewall rule of the package; Exists is null when netsh could not tell.</summary>
 public sealed record FirewallRuleState(string Name, string Protocol, int Port, bool? Exists);
 
+/// <summary>
+/// Starts and stops the CS2 dedicated server (cs2.exe), or attaches to a
+/// cs2.exe of this package that is already running (started by hand or by an
+/// earlier window).
+/// </summary>
 public sealed class ServerProcess {
     public const int GamePort = 27015;
     public const int FastDownloadPort = 27080;
@@ -120,32 +121,50 @@ public sealed class ServerProcess {
         }
 
         WriteLocalConfigPassword(rconPassword);
+        WriteActiveMode(modeId);
 
-        string arguments = string.Join(' ',
-            "-console -condebug -game cstrike",
-            $"-port {GamePort}",
-            $"+ip {lanAddress}",
-            $"+maxplayers {maxPlayers}",
-            "+sv_lan 1",
-            // The engine echoes every RCON command into its console log; the app has its own.
-            "+sv_rcon_condebug 0",
-            $"+localinfo fun_mode {modeId}",
-            $"+mapcyclefile mapcycle_{modeId}.txt",
-            $"+sv_downloadurl \"http://{lanAddress}:{FastDownloadPort}/\"",
-            $"+rcon_password {rconPassword}",
-            $"+map {startMap}");
+        GameMode mode = GameModes.Find(modeId) ?? GameModes.All[0];
+        string arguments = BuildArguments(mode, startMap, maxPlayers, lanAddress, rconPassword);
 
-        Process? hlds = Process.Start(new ProcessStartInfo {
-            FileName = _paths.HldsExe,
+        Process? server = Process.Start(new ProcessStartInfo {
+            FileName = _paths.Cs2Exe,
             Arguments = arguments,
-            WorkingDirectory = _paths.ServerDir,
+            WorkingDirectory = Path.GetDirectoryName(_paths.Cs2Exe)!,
             WindowStyle = ProcessWindowStyle.Minimized,
             UseShellExecute = true,
         });
-        if (hlds != null) {
-            RememberProcess(hlds.Id, isGameServer: true);
-            StartFastDownload(hlds.Id);
+        if (server != null) {
+            RememberProcess(server.Id, isGameServer: true);
         }
+    }
+
+    /// <summary>
+    /// The cs2.exe command line. -usercon turns on RCON (TCP on the game port),
+    /// sv_lan keeps it a LAN server that needs no Steam game server token.
+    /// fun/local.cfg runs once here; on every map the mode plugin runs it again
+    /// after the mode config.
+    /// </summary>
+    internal static string BuildArguments(GameMode mode, string startMap, int maxPlayers, IPAddress lanAddress, string rconPassword) {
+        return string.Join(' ',
+            "-dedicated -console -usercon -condebug",
+            $"-port {GamePort}",
+            $"-ip {lanAddress}",
+            $"-maxplayers {maxPlayers}",
+            "+sv_lan 1",
+            $"+game_type {mode.GameType}",
+            $"+game_mode {mode.GameModeNumber}",
+            $"+rcon_password {rconPassword}",
+            "+exec fun/local.cfg",
+            $"+map {startMap}");
+    }
+
+    /// <summary>
+    /// CS2 has no localinfo, so the active fun mode goes into a small file our
+    /// mode plugin reads on every map start (cfg\fun\active_mode.txt).
+    /// </summary>
+    public void WriteActiveMode(string modeId) {
+        Directory.CreateDirectory(_paths.FunConfigDir);
+        File.WriteAllText(_paths.ActiveModeFile, modeId, System.Text.Encoding.ASCII);
     }
 
     /// <summary>
@@ -161,7 +180,7 @@ public sealed class ServerProcess {
 
         _fastDownload = Process.Start(new ProcessStartInfo {
             FileName = exe,
-            Arguments = $"--fastdl --root \"{_paths.CstrikeDir}\" --port {FastDownloadPort} --watch-pid {hldsProcessId}",
+            Arguments = $"--fastdl --root \"{_paths.GameDir}\" --port {FastDownloadPort} --watch-pid {hldsProcessId}",
             UseShellExecute = false,
             CreateNoWindow = true,
         });
@@ -246,7 +265,7 @@ public sealed class ServerProcess {
     /// </summary>
     public string? FirstMapOfMode(string modeId) {
         return MapCycleReader.Read(_paths.MapCycleFile(modeId))
-            .FirstOrDefault(map => File.Exists(_paths.BspFile(map)));
+            .FirstOrDefault(map => File.Exists(_paths.MapFile(map)));
     }
 
     public static bool AreFirewallRulesMissing() {
@@ -328,7 +347,7 @@ public sealed class ServerProcess {
 
     /// <summary>The game server: an hlds.exe of this package that is not the nav build helper.</summary>
     private Process? FindHlds() {
-        Process[] running = Process.GetProcessesByName("hlds");
+        Process[] running = Process.GetProcessesByName("cs2");
         lock (_isGameServerById) {
             ForgetEndedProcesses(running);
         }
@@ -344,7 +363,7 @@ public sealed class ServerProcess {
     private bool IsOurHlds(Process process) {
         try {
             string? path = process.MainModule?.FileName;
-            return path != null && string.Equals(Path.GetFullPath(path), Path.GetFullPath(_paths.HldsExe), StringComparison.OrdinalIgnoreCase);
+            return path != null && string.Equals(Path.GetFullPath(path), Path.GetFullPath(_paths.Cs2Exe), StringComparison.OrdinalIgnoreCase);
         } catch (Exception exception) when (exception is Win32Exception or InvalidOperationException) {
             // A process that ended or belongs to another user is not ours.
             return false;
@@ -375,7 +394,7 @@ public sealed class ServerProcess {
     /// on the invisible desktop and would run forever otherwise.
     /// </summary>
     public void StopNavHelpers() {
-        foreach (Process process in Process.GetProcessesByName("hlds")) {
+        foreach (Process process in Process.GetProcessesByName("cs2")) {
             if (!IsOurHlds(process)) {
                 continue;
             }

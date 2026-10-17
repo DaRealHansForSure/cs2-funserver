@@ -39,11 +39,11 @@ public sealed partial class StatsReader(PackagePaths paths) {
 
     /// <summary>The maps since the given time with how long each one ran.</summary>
     public IReadOnlyList<MapPlay> ReadMapsPlayed(DateTime since, DateTime now, bool isServerRunning) {
-        if (!Directory.Exists(paths.AmxLogsDir)) {
+        if (!Directory.Exists(paths.PluginLogsDir)) {
             return [];
         }
 
-        IEnumerable<string> lines = new DirectoryInfo(paths.AmxLogsDir).GetFiles("L*.log")
+        IEnumerable<string> lines = new DirectoryInfo(paths.PluginLogsDir).GetFiles("L*.log")
             .Where(file => file.LastWriteTime >= since)
             .OrderBy(file => file.LastWriteTime)
             .SelectMany(ReadLinesShared);

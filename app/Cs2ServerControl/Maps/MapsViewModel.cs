@@ -230,7 +230,7 @@ public sealed partial class MapsViewModel : ObservableObject, IScreen {
         if (row == null || !_connection.IsRunning) {
             return;
         }
-        await _connection.RunAsync($"amx_nextmap {row.Name}");
+        await _connection.RunAsync($"nextlevel {row.Name}");
         _connection.NextMap = row.Name;
     }
 

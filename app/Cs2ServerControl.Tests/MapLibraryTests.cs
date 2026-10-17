@@ -12,6 +12,7 @@ public class MapLibraryTests : IDisposable {
     public MapLibraryTests() {
         _paths = new PackagePaths(_rootDir);
         Directory.CreateDirectory(_paths.MapsDir);
+        Directory.CreateDirectory(_paths.FunConfigDir);
         Directory.CreateDirectory(_paths.ToolsDir);
     }
 
@@ -21,9 +22,9 @@ public class MapLibraryTests : IDisposable {
 
     [Fact]
     public void ListsEveryInstalledMapWithItsModesNavAndSource() {
-        File.WriteAllBytes(_paths.BspFile("de_dust2"), new byte[2048]);
-        File.WriteAllBytes(_paths.BspFile("fy_snow"), new byte[10]);
-        File.WriteAllBytes(_paths.BspFile("my_own_map"), new byte[10]);
+        File.WriteAllBytes(_paths.MapFile("de_dust2"), new byte[2048]);
+        File.WriteAllBytes(_paths.MapFile("fy_snow"), new byte[10]);
+        File.WriteAllBytes(_paths.MapFile("my_own_map"), new byte[10]);
         File.WriteAllText(_paths.NavFile("de_dust2"), "nav");
         File.WriteAllLines(_paths.MapCycleFile("classic"), ["de_dust2", "fy_snow"]);
         File.WriteAllLines(_paths.MapCycleFile("gungame"), ["fy_snow"]);
@@ -49,18 +50,18 @@ public class MapLibraryTests : IDisposable {
     }
 
     [Fact]
-    public void CustomMapsListsArchivesAndOnlyBspFilesNotInstalledYet() {
+    public void CustomMapsListsArchivesAndOnlyMapPackagesNotInstalledYet() {
         string customDir = Path.Combine(_rootDir, "custom-maps");
         Directory.CreateDirectory(customDir);
         File.WriteAllText(Path.Combine(customDir, "PUT_MAPS_HERE.txt"), "hint");
-        File.WriteAllBytes(Path.Combine(customDir, "de_dust2.bsp"), [1]);
-        File.WriteAllBytes(Path.Combine(customDir, "new_map.bsp"), [1]);
+        File.WriteAllBytes(Path.Combine(customDir, "de_dust2.vpk"), [1]);
+        File.WriteAllBytes(Path.Combine(customDir, "new_map.vpk"), [1]);
         File.WriteAllBytes(Path.Combine(customDir, "pack.RAR"), [1]);
-        File.WriteAllBytes(_paths.BspFile("de_dust2"), [1]);
+        File.WriteAllBytes(_paths.MapFile("de_dust2"), [1]);
 
         IReadOnlyList<WaitingMap> waiting = MapLibrary.ScanCustomMaps(customDir, _paths.MapsDir);
 
-        Assert.Equal([new WaitingMap("new_map.bsp", IsArchive: false), new WaitingMap("pack.RAR", IsArchive: true)], waiting);
+        Assert.Equal([new WaitingMap("new_map.vpk", IsArchive: false), new WaitingMap("pack.RAR", IsArchive: true)], waiting);
     }
 
     [Fact]
