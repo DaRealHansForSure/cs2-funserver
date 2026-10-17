@@ -143,7 +143,9 @@ public sealed class ServerProcess {
     /// <summary>
     /// The cs2.exe command line. -usercon turns on RCON (TCP on the game port),
     /// sv_lan keeps it a LAN server that needs no Steam game server token.
-    /// fun/local.cfg runs once here; on every map the mode plugin runs it again
+    /// An empty server hibernates and then runs no frames at all, so the
+    /// plugin would neither run the mode configs nor send the live feed
+    /// while only bots play. fun/local.cfg runs once here; on every map the mode plugin runs it again
     /// after the mode config.
     /// </summary>
     internal static string BuildArguments(GameMode mode, string startMap, int maxPlayers, IPAddress lanAddress, string rconPassword) {
@@ -153,6 +155,7 @@ public sealed class ServerProcess {
             $"-ip {lanAddress}",
             $"-maxplayers {maxPlayers}",
             "+sv_lan 1",
+            "+sv_hibernate_when_empty 0",
             $"+game_type {mode.GameType}",
             $"+game_mode {mode.GameModeNumber}",
             $"+rcon_password {rconPassword}",

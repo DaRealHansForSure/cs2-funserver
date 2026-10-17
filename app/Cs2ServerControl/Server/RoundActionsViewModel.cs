@@ -45,7 +45,7 @@ public sealed partial class RoundActionsViewModel : ObservableObject {
 
     [RelayCommand]
     private Task RestartRound() {
-        return _connection.RunAsync("sv_restart 1");
+        return _connection.RunAsync("mp_restartgame 1");
     }
 
     /// <summary>

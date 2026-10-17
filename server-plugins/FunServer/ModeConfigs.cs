@@ -31,7 +31,9 @@ public sealed partial class FunServerPlugin {
                 Server.ExecuteCommand($"exec {config}");
             }
         }
-        Console.WriteLine($"[FunServer] Active mode: {mode}");
+        // The server console ends up in console.log, where the window reads
+        // the active mode; Console.WriteLine only reaches stdout.
+        Server.PrintToConsole($"[FunServer] Active mode: {mode}");
     }
 
     internal static IReadOnlyList<string> ConfigsFor(string mode) {

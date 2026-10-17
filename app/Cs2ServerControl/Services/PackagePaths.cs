@@ -27,8 +27,9 @@ public sealed class PackagePaths {
     // Rendered by the Maps screen; a real screenshot in PreviewsDir always wins.
     public string GeneratedPreviewsDir => Path.Combine(PreviewsDir, "auto");
     public string Cs2Exe => Path.Combine(ServerDir, "game", "bin", "win64", "cs2.exe");
-    // -condebug writes the console into the game folder (not verified on a real server yet).
-    public string ConsoleLogFile => Path.Combine(GameDir, "console.log");
+    // -condebug writes into the first search path of gameinfo.gi, and the
+    // installer puts Metamod's folder there, above csgo itself.
+    public string ConsoleLogFile => Path.Combine(AddonsDir, "metamod", "console.log");
 
     // The package's own configs live in cfg\fun\, so they never mix with Valve's.
     public string FunConfigDir => Path.Combine(ConfigDir, "fun");

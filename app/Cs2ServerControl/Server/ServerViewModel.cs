@@ -74,7 +74,7 @@ public sealed partial class ServerViewModel : ObservableObject, IScreen {
     public static readonly IReadOnlyList<string> QuickCommands = [
         "fun_mode gungame",
         "bot_kick",
-        "sv_restart 1",
+        "mp_restartgame 1",
         "fun_glow @all pink",
     ];
 
