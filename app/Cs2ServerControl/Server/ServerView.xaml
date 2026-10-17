@@ -1,0 +1,472 @@
+<UserControl x:Class="Cs2ServerControl.Server.ServerView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:services="clr-namespace:Cs2ServerControl.Services">
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="VisibleWhenTrue" />
+    </UserControl.Resources>
+
+    <Grid Margin="{StaticResource PagePadding}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <DockPanel Grid.Row="0" Margin="0,0,0,16">
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock Text="{Binding Settings.Error}" FontSize="{StaticResource FontSizeSmall}" Foreground="{StaticResource DangerText}"
+                           VerticalAlignment="Center" Margin="0,0,14,0" />
+                <!-- Draft of mode, map and settings: only Apply touches the server. -->
+                <StackPanel Orientation="Horizontal" Visibility="{Binding IsDirty, Converter={StaticResource VisibleWhenTrue}}">
+                    <TextBlock Text="Unsaved changes" FontSize="{StaticResource FontSizeSmall}" Foreground="{StaticResource Warning}"
+                               VerticalAlignment="Center" Margin="0,0,14,0" />
+                    <Button Content="Discard" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0" Command="{Binding DiscardCommand}"
+                            ToolTip="Back to the mode and map that run now" />
+                    <Button Content="Apply" Style="{StaticResource PrimaryButton}" Margin="0,0,20,0" Command="{Binding ApplyCommand}"
+                            ToolTip="Change the server to the picked mode and map now" />
+                </StackPanel>
+                <Button Content="Restart" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0" Command="{Binding RestartCommand}"
+                        IsEnabled="{Binding IsRunning}" />
+                <Button Content="Stop" Style="{StaticResource DangerButton}" Command="{Binding StopCommand}"
+                        Visibility="{Binding IsRunning, Converter={StaticResource VisibleWhenTrue}}" />
+                <Button Content="Start" Style="{StaticResource PrimaryButton}" Command="{Binding StartCommand}">
+                    <Button.Visibility>
+                        <Binding Path="IsRunning">
+                            <Binding.Converter>
+                                <services:InverseVisibilityConverter />
+                            </Binding.Converter>
+                        </Binding>
+                    </Button.Visibility>
+                </Button>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Server" Style="{StaticResource PageTitleText}" />
+                <Border CornerRadius="{StaticResource RadiusPill}" Padding="{StaticResource PillPadding}" Margin="14,0,0,0" VerticalAlignment="Center">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Background" Value="{StaticResource ControlBackground}" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsRunning}" Value="True">
+                                    <Setter Property="Background" Value="{StaticResource SuccessPillBackground}" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <StackPanel Orientation="Horizontal">
+                        <Ellipse Width="{StaticResource StatusDotSize}" Height="{StaticResource StatusDotSize}" Margin="0,0,8,0" VerticalAlignment="Center">
+                            <Ellipse.Style>
+                                <Style TargetType="Ellipse">
+                                    <Setter Property="Fill" Value="{StaticResource TextDisabled}" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsRunning}" Value="True">
+                                            <Setter Property="Fill" Value="{StaticResource SuccessDot}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Ellipse.Style>
+                        </Ellipse>
+                        <TextBlock Text="{Binding UptimeText}" FontSize="{StaticResource FontSizeToolbar}" VerticalAlignment="Center">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Foreground" Value="{StaticResource TextSecondary}" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsRunning}" Value="True">
+                                            <Setter Property="Foreground" Value="{StaticResource SuccessPillText}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </DockPanel>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" MinWidth="420" />
+                <ColumnDefinition Width="{StaticResource CardGapColumn}" />
+                <ColumnDefinition Width="*" MinWidth="460" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Left column -->
+            <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" Focusable="False">
+                <StackPanel>
+                    <!-- Settings: part of the draft, saved in local.cfg on Apply. -->
+                    <Border Style="{StaticResource Card}" DataContext="{Binding Settings}">
+                        <StackPanel>
+                            <DockPanel Margin="0,0,0,12">
+                                <TextBlock DockPanel.Dock="Right" Text="Saved in cstrike\local.cfg on Apply" Style="{StaticResource HintText}" />
+                                <TextBlock Text="Settings" Style="{StaticResource CardTitleText}" />
+                            </DockPanel>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="{StaticResource LiveGapColumn}" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,0,12">
+                                    <TextBlock Text="Server name" Style="{StaticResource LabelText}" />
+                                    <TextBox Style="{StaticResource TextInput}" Text="{Binding ServerName, UpdateSourceTrigger=PropertyChanged}"
+                                             AutomationProperties.Name="Server name" />
+                                </StackPanel>
+                                <StackPanel Grid.Row="0" Grid.Column="2" Margin="0,0,0,12">
+                                    <TextBlock Text="Join password" Style="{StaticResource LabelText}" />
+                                    <TextBox Style="{StaticResource TextInput}" Tag="Empty: everybody can join"
+                                             Text="{Binding JoinPassword, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Join password" />
+                                </StackPanel>
+                                <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,0,12">
+                                    <TextBlock Text="Max players" Style="{StaticResource LabelText}" />
+                                    <TextBox Style="{StaticResource TextInput}" Text="{Binding MaxPlayersText, UpdateSourceTrigger=PropertyChanged}"
+                                             MaxLength="2" AutomationProperties.Name="Max players" />
+                                    <TextBlock Text="Takes effect on the next start or restart" Style="{StaticResource HintText}" Margin="0,4,0,0"
+                                               Visibility="{Binding IsMaxPlayersPending, Converter={StaticResource VisibleWhenTrue}}" />
+                                </StackPanel>
+                                <StackPanel Grid.Row="1" Grid.Column="2" Margin="0,0,0,12">
+                                    <TextBlock Text="Fun round every (rounds)" Style="{StaticResource LabelText}" />
+                                    <TextBox Style="{StaticResource TextInput}" Text="{Binding FunRoundsEveryText, UpdateSourceTrigger=PropertyChanged}"
+                                             MaxLength="2" AutomationProperties.Name="Fun round every" IsEnabled="{Binding FunRoundsEnabled}" />
+                                </StackPanel>
+                                <StackPanel Grid.Row="2" Grid.Column="0">
+                                    <TextBlock Text="Hook speed" Style="{StaticResource LabelText}" />
+                                    <TextBox Style="{StaticResource TextInput}" Text="{Binding HookSpeedText, UpdateSourceTrigger=PropertyChanged}"
+                                             MaxLength="4" AutomationProperties.Name="Hook speed" />
+                                </StackPanel>
+                                <StackPanel Grid.Row="2" Grid.Column="2" VerticalAlignment="Bottom">
+                                    <CheckBox Style="{StaticResource AccentCheckBox}" IsChecked="{Binding FunRoundsEnabled}" Margin="0,0,0,10">
+                                        <TextBlock>Fun rounds in Classic Fun <Run Text="fun_rounds_enabled" FontFamily="{StaticResource MonoFont}"
+                                                   FontSize="{StaticResource FontSizeSmall}" Foreground="{StaticResource TextTertiary}" /></TextBlock>
+                                    </CheckBox>
+                                    <CheckBox Style="{StaticResource AccentCheckBox}" IsChecked="{Binding HookAdminOnly}">
+                                        <TextBlock>Hook for admins only <Run Text="fun_hook_admin_only" FontFamily="{StaticResource MonoFont}"
+                                                   FontSize="{StaticResource FontSizeSmall}" Foreground="{StaticResource TextTertiary}" /></TextBlock>
+                                    </CheckBox>
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Game rules: per mode, part of the draft, saved in local_<mode>.cfg on Apply. -->
+                    <Border Style="{StaticResource Card}" Margin="0,16,0,0" DataContext="{Binding Rules}">
+                        <StackPanel>
+                            <DockPanel Margin="0,0,0,12">
+                                <Button DockPanel.Dock="Right" Content="Reset to defaults" Style="{StaticResource SmallSecondaryButton}" Margin="12,0,0,0"
+                                        Command="{Binding ResetToDefaultsCommand}" ToolTip="Empties every field of this mode, so the mode values apply again" />
+                                <TextBlock DockPanel.Dock="Right" Text="{Binding FileHint}" Style="{StaticResource HintText}" VerticalAlignment="Center" />
+                                <TextBlock Text="Game rules" Style="{StaticResource CardTitleText}" VerticalAlignment="Center" />
+                                <ComboBox Style="{StaticResource Select}" Width="180" Margin="16,0,0,0" HorizontalAlignment="Left"
+                                          ItemsSource="{Binding Modes}" SelectedItem="{Binding SelectedMode}" DisplayMemberPath="Title"
+                                          AutomationProperties.Name="Game rules for mode" />
+                            </DockPanel>
+                            <ItemsControl ItemsSource="{Binding Rows}" Focusable="False">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <UniformGrid Columns="2" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Margin="0,0,12,12">
+                                            <TextBlock Text="{Binding Label}" Style="{StaticResource LabelText}" Margin="0,0,0,6" />
+                                            <TextBox Style="{StaticResource TextInput}" Tag="{Binding Placeholder}"
+                                                     Text="{Binding Text, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{Binding Label}"
+                                                     Visibility="{Binding IsText, Converter={StaticResource VisibleWhenTrue}}" />
+                                            <ComboBox Style="{StaticResource Select}" ItemsSource="{Binding Choices}" SelectedItem="{Binding SelectedChoice}"
+                                                      DisplayMemberPath="Label" AutomationProperties.Name="{Binding Label}"
+                                                      Visibility="{Binding IsOnOff, Converter={StaticResource VisibleWhenTrue}}" />
+                                            <TextBlock Text="{Binding Hint}" Style="{StaticResource HintText}" Margin="0,4,0,0" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Mode -->
+                    <Border Style="{StaticResource Card}" Margin="0,16,0,0">
+                        <StackPanel>
+                            <TextBlock Text="Mode" Style="{StaticResource CardTitleText}" Margin="0,0,0,12" />
+                            <ItemsControl ItemsSource="{Binding ModeTiles}" Focusable="False">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <UniformGrid Columns="2" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <RadioButton Style="{StaticResource ModeTile}" GroupName="ModeTiles" Margin="0,0,10,10"
+                                                     IsChecked="{Binding IsPicked, Mode=TwoWay}" AutomationProperties.Name="{Binding Title}">
+                                            <StackPanel>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="{Binding Title}" FontSize="{StaticResource FontSizeModeTitle}" FontWeight="SemiBold"
+                                                               Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center" />
+                                                    <Border Background="{StaticResource Accent}" CornerRadius="{StaticResource RadiusActiveChip}"
+                                                            Padding="{StaticResource ActiveChipPadding}" Margin="8,0,0,0" VerticalAlignment="Center"
+                                                            Visibility="{Binding IsActive, Converter={StaticResource VisibleWhenTrue}}">
+                                                        <TextBlock Text="Active" FontSize="{StaticResource FontSizeCaption}" FontWeight="SemiBold"
+                                                                   Foreground="{StaticResource OnAccent}" />
+                                                    </Border>
+                                                </StackPanel>
+                                                <TextBlock Text="{Binding Description}" Style="{StaticResource HintText}" Margin="0,4,0,0" />
+                                            </StackPanel>
+                                        </RadioButton>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <TextBlock Text="Pick a mode and a map below, then Apply: the server changes to them right away."
+                                       Style="{StaticResource HintText}" Margin="0,2,0,0" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Maps -->
+                    <Border Style="{StaticResource Card}" Margin="0,16,0,0">
+                        <StackPanel>
+                            <DockPanel Margin="0,0,0,12">
+                                <TextBlock DockPanel.Dock="Right" Text="{Binding MapsInfo}" Style="{StaticResource HintText}" VerticalAlignment="Center" />
+                                <TextBox DockPanel.Dock="Right" Style="{StaticResource TextInput}" Width="200" Margin="0,0,16,0" Tag="Search maps"
+                                         Text="{Binding MapSearchText, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Search maps" />
+                                <TextBlock Text="{Binding MapsTitle}" Style="{StaticResource CardTitleText}" VerticalAlignment="Center" />
+                            </DockPanel>
+                            <TextBlock Text="No mapcycle file for this mode. Run Install or repair on the Install screen." Style="{StaticResource HintText}" Margin="0,0,0,12">
+                                <TextBlock.Visibility>
+                                    <Binding Path="Maps.Count">
+                                        <Binding.Converter>
+                                            <services:ZeroToVisibleConverter />
+                                        </Binding.Converter>
+                                    </Binding>
+                                </TextBlock.Visibility>
+                            </TextBlock>
+                            <ItemsControl ItemsSource="{Binding Maps}" Focusable="False">
+                                <!-- A search hides rows; UniformGrid skips collapsed ones, so the rest closes up. -->
+                                <ItemsControl.ItemContainerStyle>
+                                    <Style TargetType="ContentPresenter">
+                                        <Setter Property="Visibility" Value="{Binding IsShown, Converter={StaticResource VisibleWhenTrue}}" />
+                                    </Style>
+                                </ItemsControl.ItemContainerStyle>
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <UniformGrid Columns="2" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <RadioButton Style="{StaticResource MapRowRadio}" GroupName="MapRows" Margin="0,0,12,4"
+                                                     IsChecked="{Binding IsPicked, Mode=TwoWay}" AutomationProperties.Name="{Binding Name}">
+                                            <RadioButton.InputBindings>
+                                                <MouseBinding Gesture="LeftDoubleClick"
+                                                              Command="{Binding DataContext.ShowMapDetailsCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                              CommandParameter="{Binding}" />
+                                            </RadioButton.InputBindings>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <Border Width="48" Height="27" Background="{StaticResource InputBackground}"
+                                                        BorderBrush="{StaticResource CardBorder}" BorderThickness="{StaticResource BorderOne}">
+                                                    <Image Source="{Binding Thumbnail}" Stretch="UniformToFill" RenderOptions.BitmapScalingMode="HighQuality" />
+                                                </Border>
+                                                <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="10,0,0,0" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding Name}" FontFamily="{StaticResource MonoFont}" FontSize="{StaticResource FontSizeToolbar}"
+                                                               Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center" />
+                                                    <TextBlock Text="now" FontSize="{StaticResource FontSizeCaption}" Foreground="{StaticResource Accent}"
+                                                               Margin="8,0,0,0" VerticalAlignment="Center"
+                                                               Visibility="{Binding IsCurrent, Converter={StaticResource VisibleWhenTrue}}" />
+                                                </StackPanel>
+                                                <Button Grid.Column="2" Content="Details" Style="{StaticResource ToolbarButton}" Height="{StaticResource SmallButtonHeight}"
+                                                        FontSize="{StaticResource FontSizeSmall}" Foreground="{StaticResource TextSecondary}"
+                                                        Command="{Binding DataContext.ShowMapDetailsCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                        CommandParameter="{Binding}" AutomationProperties.Name="{Binding Name, StringFormat=Details of {0}}" />
+                                            </Grid>
+                                        </RadioButton>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                                <Button Content="Set as next map" Style="{StaticResource SecondaryButton}"
+                                        Command="{Binding SetNextMapCommand}" IsEnabled="{Binding IsRunning}"
+                                        ToolTip="Right away: the picked map comes after the current one" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Round: runs at once, it changes the game in progress. -->
+                    <Border Style="{StaticResource Card}" Margin="0,16,0,0" DataContext="{Binding Round}">
+                        <StackPanel IsEnabled="{Binding DataContext.IsRunning, RelativeSource={RelativeSource AncestorType=UserControl}}">
+                            <DockPanel Margin="0,0,0,12">
+                                <TextBlock DockPanel.Dock="Right" Text="Runs at once" Style="{StaticResource HintText}" />
+                                <TextBlock Text="Round" Style="{StaticResource CardTitleText}" />
+                            </DockPanel>
+                            <TextBlock Text="Next fun round (Classic Fun)" Style="{StaticResource LabelText}" />
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                                <ComboBox Style="{StaticResource Select}" Width="{StaticResource SelectMaxWidth}" ItemsSource="{Binding FunRounds}"
+                                          SelectedItem="{Binding NextFunRound}" AutomationProperties.Name="Next fun round">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Title}" />
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                                <Button Content="Force next round" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0"
+                                        Command="{Binding ForceFunRoundCommand}" />
+                            </StackPanel>
+                            <WrapPanel Margin="0,0,0,12">
+                                <Button Content="Restart round" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0" Command="{Binding RestartRoundCommand}" />
+                                <Button Content="Hook on" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0" Command="{Binding HookOnCommand}"
+                                        ToolTip="Only for this map, the mode decides again on the next one" />
+                                <Button Content="Hook off" Style="{StaticResource SecondaryButton}" Command="{Binding HookOffCommand}"
+                                        ToolTip="Only for this map, the mode decides again on the next one" />
+                            </WrapPanel>
+                            <TextBlock Text="Message to everybody" Style="{StaticResource LabelText}" />
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBox Style="{StaticResource TextInput}" Tag="Shown in the chat of every player"
+                                         Text="{Binding Message, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Message to everybody">
+                                    <TextBox.InputBindings>
+                                        <KeyBinding Key="Enter" Command="{Binding SendMessageCommand}" />
+                                    </TextBox.InputBindings>
+                                </TextBox>
+                                <Button Grid.Column="1" Content="Send" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0"
+                                        Command="{Binding SendMessageCommand}" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- TV: an HLTV proxy for a projector, also part of the draft. -->
+                    <Border Style="{StaticResource Card}" Margin="0,16,0,0" DataContext="{Binding Settings}">
+                        <StackPanel>
+                            <DockPanel Margin="0,0,0,12">
+                                <TextBlock DockPanel.Dock="Right">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock" BasedOn="{StaticResource HintText}">
+                                            <Setter Property="Text" Value="Off" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding DataContext.Connection.IsTvRunning, RelativeSource={RelativeSource AncestorType=UserControl}}" Value="True">
+                                                    <Setter Property="Text" Value="Running" />
+                                                    <Setter Property="Foreground" Value="{StaticResource SuccessPillText}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                                <TextBlock Text="TV" Style="{StaticResource CardTitleText}" />
+                            </DockPanel>
+                            <CheckBox Style="{StaticResource AccentCheckBox}" IsChecked="{Binding IsTvWanted}" Margin="0,0,0,8"
+                                      IsEnabled="{Binding DataContext.IsRunning, RelativeSource={RelativeSource AncestorType=UserControl}}">
+                                <TextBlock>Broadcast to a TV or projector <Run Text="HLTV, 10 s delay, one player slot" FontSize="{StaticResource FontSizeSmall}"
+                                           Foreground="{StaticResource TextTertiary}" /></TextBlock>
+                            </CheckBox>
+                            <TextBlock Text="{Binding TvAddressText}" FontFamily="{StaticResource MonoFont}" FontSize="{StaticResource FontSizeSmall}"
+                                       Foreground="{StaticResource TextTertiary}" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Console -->
+            <Border Grid.Column="2" Style="{StaticResource Card}" VerticalAlignment="Stretch">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" MinHeight="200" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <DockPanel Grid.Row="0" Margin="0,0,0,12">
+                        <!-- Follow keeps the newest line in view; scrolling up to read turns it off. -->
+                        <ToggleButton x:Name="FollowToggle" DockPanel.Dock="Right" Content="Follow" Style="{StaticResource CardToggle}"
+                                      Height="{StaticResource SmallButtonHeight}" Margin="12,0,0,0" IsChecked="True"
+                                      Checked="OnFollowChecked" Unchecked="OnFollowUnchecked"
+                                      ToolTip="Keep the newest console line in view" />
+                        <TextBlock DockPanel.Dock="Right" Text="{Binding ConsoleInfo}" Style="{StaticResource HintText}" VerticalAlignment="Center" />
+                        <TextBlock Text="Console" Style="{StaticResource CardTitleText}" VerticalAlignment="Center" />
+                    </DockPanel>
+
+                    <Border Grid.Row="1" Background="{StaticResource ViewportBackground}" BorderBrush="{StaticResource ConsoleBorder}"
+                            BorderThickness="{StaticResource BorderOne}" CornerRadius="{StaticResource RadiusControl}">
+                        <ItemsControl x:Name="ConsoleList" ItemsSource="{Binding ConsoleLines}" Focusable="False"
+                                      VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.ScrollUnit="Pixel"
+                                      ScrollViewer.CanContentScroll="True" AutomationProperties.Name="Server console">
+                            <ItemsControl.Template>
+                                <ControlTemplate TargetType="ItemsControl">
+                                    <ScrollViewer x:Name="ConsoleScroll" Padding="{StaticResource ConsolePadding}" CanContentScroll="True"
+                                                  HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" Focusable="False">
+                                        <ItemsPresenter />
+                                    </ScrollViewer>
+                                </ControlTemplate>
+                            </ItemsControl.Template>
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <VirtualizingStackPanel />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="{x:Type services:ConsoleLine}">
+                                    <TextBlock x:Name="Line" Text="{Binding Text}" FontFamily="{StaticResource MonoFont}"
+                                               FontSize="{StaticResource FontSizeSmall}" TextWrapping="Wrap"
+                                               LineHeight="{StaticResource ConsoleLineHeight}" LineStackingStrategy="BlockLineHeight"
+                                               Foreground="{StaticResource TextTertiary}" />
+                                    <DataTemplate.Triggers>
+                                        <DataTrigger Binding="{Binding Kind}" Value="Plugin">
+                                            <Setter TargetName="Line" Property="Foreground" Value="{StaticResource WireHigh}" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding Kind}" Value="Kill">
+                                            <Setter TargetName="Line" Property="Foreground" Value="{StaticResource Warning}" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding Kind}" Value="Command">
+                                            <Setter TargetName="Line" Property="Foreground" Value="{StaticResource TextPrimary}" />
+                                        </DataTrigger>
+                                    </DataTemplate.Triggers>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Border>
+
+                    <TextBlock Grid.Row="2" Text="RCON command" Style="{StaticResource LabelText}" Margin="0,16,0,6" />
+                    <Grid Grid.Row="3">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox Grid.Column="0" Style="{StaticResource RconInput}" Tag="e.g. amx_rocket Ulf"
+                                 Text="{Binding CommandText, UpdateSourceTrigger=PropertyChanged}"
+                                 AutomationProperties.Name="RCON command">
+                            <TextBox.InputBindings>
+                                <KeyBinding Key="Enter" Command="{Binding SendCommandCommand}" />
+                                <KeyBinding Key="Up" Command="{Binding HistoryPreviousCommand}" />
+                                <KeyBinding Key="Down" Command="{Binding HistoryNextCommand}" />
+                            </TextBox.InputBindings>
+                        </TextBox>
+                        <Button Grid.Column="1" Content="Send" Style="{StaticResource PrimaryButton}" Margin="8,0,0,0"
+                                Command="{Binding SendCommandCommand}" />
+                    </Grid>
+                    <ItemsControl Grid.Row="4" ItemsSource="{Binding QuickCommandList}" Margin="0,12,0,0" Focusable="False">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Button Content="{Binding}" Style="{StaticResource ChipButton}" Margin="0,0,8,8"
+                                        Command="{Binding DataContext.SendQuickCommandCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                        CommandParameter="{Binding}" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

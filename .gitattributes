@@ -1,0 +1,31 @@
+# Everything in this package is used on Windows: Notepad shows README.txt,
+# and the server reads the configs. Text files are
+# therefore always checked out with CRLF, whatever the git settings are.
+* text=auto eol=crlf
+
+*.txt    text eol=crlf
+*.md     text eol=crlf
+*.csv    text eol=crlf
+*.cfg    text eol=crlf
+*.ini    text eol=crlf
+*.sma    text eol=crlf
+*.inc    text eol=crlf
+.gitignore      text eol=crlf
+.gitattributes  text eol=crlf
+
+# Game content that might be added later, never touch its bytes.
+*.bsp    binary
+*.wad    binary
+*.wav    binary
+*.mp3    binary
+*.mdl    binary
+*.spr    binary
+*.tga    binary
+*.bmp    binary
+*.res    text eol=crlf
+*.zip    binary
+*.rar    binary
+*.7z     binary
+*.amxx   binary
+*.dll    binary
+*.exe    binary

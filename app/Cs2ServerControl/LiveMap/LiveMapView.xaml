@@ -1,0 +1,443 @@
+<UserControl x:Class="Cs2ServerControl.LiveMap.LiveMapView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:hx="http://helix-toolkit.org/wpf/SharpDX"
+             xmlns:livemap="clr-namespace:Cs2ServerControl.LiveMap"
+             xmlns:services="clr-namespace:Cs2ServerControl.Services">
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="VisibleWhenTrue" />
+
+        <Style x:Key="OverlayText" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource TextTertiary}" />
+            <Setter Property="FontSize" Value="{StaticResource FontSizeSmall}" />
+            <Setter Property="IsHitTestVisible" Value="False" />
+        </Style>
+
+        <Style x:Key="TeamDot" TargetType="Ellipse">
+            <Setter Property="Width" Value="{StaticResource TeamDotSize}" />
+            <Setter Property="Height" Value="{StaticResource TeamDotSize}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Fill" Value="{StaticResource TeamSpectator}" />
+        </Style>
+
+        <Style x:Key="TeamText" TargetType="Run">
+            <Setter Property="Foreground" Value="{StaticResource TeamSpectator}" />
+        </Style>
+    </UserControl.Resources>
+
+    <Grid Margin="{StaticResource LivePagePadding}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="{StaticResource LiveGapColumn}" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Toolbar -->
+        <Border Grid.Row="0" Background="{StaticResource CardBackground}" BorderBrush="{StaticResource CardBorder}"
+                BorderThickness="{StaticResource BorderOne}" CornerRadius="{StaticResource RadiusLiveCard}" Padding="{StaticResource ToolbarPadding}">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Right" Text="{Binding CameraModeText}" Style="{StaticResource HintText}" Margin="12,0,8,0" />
+                <StackPanel Orientation="Horizontal">
+                    <Button Content="&#x21BA; Rotate" Style="{StaticResource ToolbarButton}" Command="{Binding RotateLeftCommand}"
+                            AutomationProperties.Name="Rotate left" ToolTip="Orbit 15 degrees left (Q)" Margin="0,0,6,0" />
+                    <Button Content="Rotate &#x21BB;" Style="{StaticResource ToolbarButton}" Command="{Binding RotateRightCommand}"
+                            AutomationProperties.Name="Rotate right" ToolTip="Orbit 15 degrees right (E)" Margin="0,0,6,0" />
+                    <Button Content="Steeper" Style="{StaticResource ToolbarButton}" Command="{Binding SteeperCommand}"
+                            ToolTip="Look down more (R)" Margin="0,0,6,0" />
+                    <Button Content="Flatter" Style="{StaticResource ToolbarButton}" Command="{Binding FlatterCommand}"
+                            ToolTip="Look from the side more (F)" Margin="0,0,6,0" />
+                    <Button Content="+" Style="{StaticResource ToolbarButton}" Command="{Binding ZoomInCommand}"
+                            AutomationProperties.Name="Zoom in" ToolTip="Zoom in (+ or mouse wheel)" Margin="0,0,6,0" />
+                    <Button Content="-" Style="{StaticResource ToolbarButton}" Command="{Binding ZoomOutCommand}"
+                            AutomationProperties.Name="Zoom out" ToolTip="Zoom out (- or mouse wheel)" Margin="0,0,6,0" />
+                    <Button Content="Reset" Style="{StaticResource ToolbarButton}" Command="{Binding ResetViewCommand}"
+                            AutomationProperties.Name="Reset view" ToolTip="Whole map in view again (Home)" Margin="0,0,6,0" />
+                    <Border Style="{StaticResource VerticalDivider}" Margin="0,0,6,0" />
+                    <ToggleButton Content="3D" Style="{StaticResource ToolbarToggle}" IsChecked="{Binding IsPerspective, Mode=TwoWay}" Margin="0,0,6,0" />
+                    <ToggleButton Content="Top view" Style="{StaticResource ToolbarToggle}" IsChecked="{Binding IsTopView, Mode=TwoWay}"
+                                  ToolTip="Straight down (T)" Margin="0,0,6,0" />
+                    <Border Style="{StaticResource VerticalDivider}" Margin="0,0,6,0" />
+                    <ToggleButton Content="Names" Style="{StaticResource ToolbarToggle}" IsChecked="{Binding ShowNames, Mode=TwoWay}" Margin="0,0,6,0" />
+                    <ToggleButton Content="Weapons" Style="{StaticResource ToolbarToggle}" IsChecked="{Binding ShowWeapons, Mode=TwoWay}" Margin="0,0,6,0"
+                                  ToolTip="The weapon in hand next to each player, with the game's own icons" />
+                    <ToggleButton Content="Trails" Style="{StaticResource ToolbarToggle}" IsChecked="{Binding ShowTrails, Mode=TwoWay}" Margin="0,0,6,0" />
+                    <ToggleButton Content="Shots" Style="{StaticResource ToolbarToggle}" IsChecked="{Binding ShowShots, Mode=TwoWay}" Margin="0,0,6,0"
+                                  ToolTip="Bullet paths in the team color; a hit on a player is drawn thicker with a cross" />
+                    <Border Style="{StaticResource VerticalDivider}" Margin="0,0,6,0" />
+                    <ToggleButton Content="Nav mesh" Style="{StaticResource ToolbarToggle}" IsChecked="{Binding ShowNavMesh, Mode=TwoWay}"
+                                  ToolTip="Debug view: zBot walkable areas (violet), links between them and hiding spots (yellow)" />
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" MinWidth="{StaticResource ViewportMinWidth}" />
+                <ColumnDefinition Width="{StaticResource LiveGapColumn}" />
+                <ColumnDefinition Width="0.28*" MinWidth="{StaticResource SidePanelMinWidth}" MaxWidth="{StaticResource SidePanelMaxWidth}" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Viewport -->
+            <Border Grid.Column="0" Background="{StaticResource ViewportBackground}" BorderBrush="{StaticResource CardBorder}"
+                    BorderThickness="{StaticResource BorderOne}" CornerRadius="{StaticResource RadiusLiveCard}" ClipToBounds="True">
+                <Grid>
+                    <hx:Viewport3DX x:Name="Viewport"
+                                    Focusable="True" FocusVisualStyle="{x:Null}"
+                                    AutomationProperties.Name="3D map"
+                                    ModelUpDirection="0,0,1"
+                                    BackgroundColor="{StaticResource ViewportBackgroundColor}"
+                                    ShowViewCube="True" ViewCubeHorizontalPosition="0.85" ViewCubeVerticalPosition="-0.75" ViewCubeSize="1.5"
+                                    ShowCoordinateSystem="True" CoordinateSystemHorizontalPosition="-0.85" CoordinateSystemVerticalPosition="-0.8"
+                                    CoordinateSystemAxisXColor="{StaticResource AxisXColor}"
+                                    CoordinateSystemAxisYColor="{StaticResource AxisYColor}"
+                                    CoordinateSystemAxisZColor="{StaticResource AxisZColor}"
+                                    CoordinateSystemLabelForeground="{StaticResource TextTertiaryColor}"
+                                    ShowCameraInfo="False" ShowFrameRate="False" ShowFrameDetails="False" ShowTriangleCountInfo="False"
+                                    IsRotationEnabled="False" IsPanEnabled="False" IsZoomEnabled="False" IsInertiaEnabled="False"
+                                    IsChangeFieldOfViewEnabled="False" IsMoveEnabled="False" UseDefaultGestures="False"
+                                    ZoomExtentsWhenLoaded="False" EnableRenderFrustum="True" MSAA="Four">
+                        <hx:Viewport3DX.Camera>
+                            <hx:PerspectiveCamera x:Name="Camera" FieldOfView="45" NearPlaneDistance="4" FarPlaneDistance="60000"
+                                                  UpDirection="0,0,1" Position="0,-4000,4000" LookDirection="0,4000,-4000" />
+                        </hx:Viewport3DX.Camera>
+                        <hx:AmbientLight3D Color="#606060" />
+                        <hx:DirectionalLight3D Color="#A0A0A0" Direction="-0.3,-0.4,-1" />
+                        <hx:LineGeometryModel3D x:Name="GridLines" Thickness="1" Smoothness="0.5" IsHitTestVisible="False" />
+                        <hx:LineMaterialGeometryModel3D x:Name="MapLines" IsHitTestVisible="False" />
+                        <hx:LineGeometryModel3D x:Name="NavLinkLines" Thickness="1" Smoothness="0.5" IsHitTestVisible="False" Color="{StaticResource NavLinkColor}" />
+                        <hx:LineGeometryModel3D x:Name="NavAreaLines" Thickness="1" Smoothness="0.5" IsHitTestVisible="False" Color="{StaticResource NavAreaColor}" />
+                        <hx:PointGeometryModel3D x:Name="NavHidingSpots" Size="5,5" Figure="Rect" IsHitTestVisible="False" Color="{StaticResource HidingSpotColor}" />
+                        <hx:LineGeometryModel3D x:Name="PlayerWideLines" Thickness="6" Smoothness="1" IsHitTestVisible="False" Color="White" />
+                        <hx:LineGeometryModel3D x:Name="PlayerMediumLines" Thickness="2" Smoothness="0.5" IsHitTestVisible="False" Color="White" />
+                        <hx:LineGeometryModel3D x:Name="PlayerThinLines" Thickness="1" Smoothness="0.5" IsHitTestVisible="False" Color="White" />
+                        <!-- Glow halo first, so the head marker is drawn on top of it. -->
+                        <hx:PointGeometryModel3D x:Name="PlayerGlows" Size="24,24" Figure="Ellipse" Color="White" IsHitTestVisible="False" />
+                        <hx:PointGeometryModel3D x:Name="PlayerHeads" Size="11,11" Figure="Ellipse" Color="White" IsHitTestVisible="False" />
+                    </hx:Viewport3DX>
+
+                    <!-- Player names, positioned from code at the projected head. -->
+                    <Canvas x:Name="LabelLayer" IsHitTestVisible="False" ClipToBounds="True" />
+
+                    <!-- Map title, top left -->
+                    <StackPanel Margin="{StaticResource OverlayMargin}" HorizontalAlignment="Left" VerticalAlignment="Top" IsHitTestVisible="False">
+                        <TextBlock Text="{Binding MapName}" FontSize="{StaticResource FontSizeMapTitle}" FontWeight="SemiBold"
+                                   Foreground="{StaticResource TextPrimary}" />
+                        <TextBlock Text="{Binding MapSubtitle}" Style="{StaticResource OverlayText}" Margin="0,2,0,0" />
+                        <TextBlock Text="{Binding NavMeshMessage}" Style="{StaticResource OverlayText}" Foreground="{StaticResource Warning}" Margin="0,2,0,0" />
+                    </StackPanel>
+
+                    <!-- Camera info, top right -->
+                    <StackPanel Margin="{StaticResource OverlayMargin}" HorizontalAlignment="Right" VerticalAlignment="Top" IsHitTestVisible="False">
+                        <TextBlock x:Name="CameraPositionText" FontFamily="{StaticResource MonoFont}" FontSize="{StaticResource FontSizeCaption}"
+                                   Foreground="{StaticResource TextTertiary}" HorizontalAlignment="Right" />
+                        <TextBlock x:Name="CameraLookText" FontFamily="{StaticResource MonoFont}" FontSize="{StaticResource FontSizeCaption}"
+                                   Foreground="{StaticResource TextTertiary}" HorizontalAlignment="Right" />
+                        <TextBlock x:Name="CameraUpText" FontFamily="{StaticResource MonoFont}" FontSize="{StaticResource FontSizeCaption}"
+                                   Foreground="{StaticResource TextTertiary}" HorizontalAlignment="Right" />
+                        <TextBlock x:Name="FrameRateText" FontFamily="{StaticResource MonoFont}" FontSize="{StaticResource FontSizeCaption}"
+                                   Foreground="{StaticResource Accent}" HorizontalAlignment="Right" />
+                    </StackPanel>
+
+                    <!-- Loading or error message -->
+                    <TextBlock Text="{Binding ViewportMessage}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                               FontSize="{StaticResource FontSizeBody}" Foreground="{StaticResource TextSecondary}" IsHitTestVisible="False" />
+
+                    <!-- Controls hint, bottom center -->
+                    <TextBlock HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,10" Style="{StaticResource OverlayText}"
+                               FontSize="{StaticResource FontSizeCaption}"
+                               Text="Left drag: move · Right drag: orbit · Wheel: zoom · WASD move · Q/E rotate · R/F tilt · Home reset" />
+                </Grid>
+            </Border>
+
+            <!-- Side panel -->
+            <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto" Focusable="False">
+                <StackPanel>
+                    <!-- Players -->
+                    <Border Style="{StaticResource LiveCard}">
+                        <StackPanel>
+                            <TextBlock Text="Players" Style="{StaticResource SideCardTitleText}" Margin="0,0,0,8" />
+                            <TextBlock Text="Nobody on the server." Style="{StaticResource HintText}" Margin="0,0,0,4">
+                                <TextBlock.Visibility>
+                                    <Binding Path="Players.Count">
+                                        <Binding.Converter>
+                                            <services:ZeroToVisibleConverter />
+                                        </Binding.Converter>
+                                    </Binding>
+                                </TextBlock.Visibility>
+                            </TextBlock>
+                            <ItemsControl ItemsSource="{Binding Players}" Focusable="False">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <!-- Tag carries the screen's view model into the context menu, which lives
+                                             outside the visual tree. Opening the menu also selects the player. -->
+                                        <Button x:Name="Row" Style="{StaticResource PlayerRowButton}" Margin="0,0,0,2"
+                                                Command="{Binding DataContext.SelectPlayerCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}" AutomationProperties.Name="{Binding Name}"
+                                                Tag="{Binding DataContext, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                ContextMenuOpening="OnPlayerRowContextMenuOpening">
+                                            <Button.ContextMenu>
+                                                <ContextMenu DataContext="{Binding PlacementTarget.Tag, RelativeSource={RelativeSource Self}}">
+                                                    <MenuItem Header="Glow">
+                                                        <MenuItem Header="Red" Command="{Binding GlowWithCommand}" CommandParameter="red" />
+                                                        <MenuItem Header="Green" Command="{Binding GlowWithCommand}" CommandParameter="green" />
+                                                        <MenuItem Header="Blue" Command="{Binding GlowWithCommand}" CommandParameter="blue" />
+                                                        <MenuItem Header="Yellow" Command="{Binding GlowWithCommand}" CommandParameter="yellow" />
+                                                        <MenuItem Header="Pink" Command="{Binding GlowWithCommand}" CommandParameter="pink" />
+                                                        <MenuItem Header="White" Command="{Binding GlowWithCommand}" CommandParameter="white" />
+                                                        <Separator />
+                                                        <MenuItem Header="Off" Command="{Binding GlowWithCommand}" CommandParameter="off" />
+                                                    </MenuItem>
+                                                    <MenuItem Header="Rocket" Command="{Binding RocketCommand}" />
+                                                    <MenuItem Header="Godmode" Command="{Binding GodmodeCommand}" />
+                                                    <MenuItem Header="Noclip" Command="{Binding NoclipCommand}" />
+                                                    <MenuItem Header="Reset fun" Command="{Binding ResetFunCommand}" />
+                                                    <Separator />
+                                                    <MenuItem Header="Follow camera" IsCheckable="True" IsChecked="{Binding IsFollowing, Mode=TwoWay}" />
+                                                    <MenuItem Header="Slay" Command="{Binding SlayCommand}" />
+                                                    <MenuItem Header="Kick..." Command="{Binding KickCommand}" />
+                                                </ContextMenu>
+                                            </Button.ContextMenu>
+                                            <Grid x:Name="RowContent">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="10" />
+                                                    <ColumnDefinition Width="8" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="8" />
+                                                    <ColumnDefinition Width="48" />
+                                                    <ColumnDefinition Width="8" />
+                                                    <ColumnDefinition Width="52" />
+                                                    <ColumnDefinition Width="8" />
+                                                    <ColumnDefinition Width="44" />
+                                                </Grid.ColumnDefinitions>
+                                                <!-- A glowing player gets a ring in the glow color around the team dot. -->
+                                                <Ellipse Grid.Column="0" Width="16" Height="16" Margin="-3,0,-3,0" StrokeThickness="2"
+                                                         VerticalAlignment="Center" HorizontalAlignment="Center"
+                                                         Visibility="{Binding HasGlow, Converter={StaticResource VisibleWhenTrue}}">
+                                                    <Ellipse.Stroke>
+                                                        <SolidColorBrush Color="{Binding GlowColor}" />
+                                                    </Ellipse.Stroke>
+                                                </Ellipse>
+                                                <Ellipse x:Name="Dot" Grid.Column="0" Style="{StaticResource TeamDot}" />
+                                                <TextBlock Grid.Column="2" VerticalAlignment="Center" TextTrimming="CharacterEllipsis">
+                                                    <Run Text="{Binding Name, Mode=OneWay}" />
+                                                    <Run x:Name="BotTag" Text="" FontSize="{StaticResource FontSizeCaption}" Foreground="{StaticResource TextTertiary}" />
+                                                </TextBlock>
+                                                <!-- The weapon in hand: the game's kill icon, or its name where the game has none. -->
+                                                <Image Grid.Column="4" Source="{Binding WeaponIcon}" Height="{StaticResource WeaponIconHeight}" Stretch="Uniform"
+                                                       HorizontalAlignment="Right" VerticalAlignment="Center" RenderOptions.BitmapScalingMode="NearestNeighbor" />
+                                                <TextBlock Grid.Column="4" Text="{Binding WeaponText}" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                           FontSize="{StaticResource FontSizeCaption}" Foreground="{StaticResource TextTertiary}" />
+                                                <TextBlock Grid.Column="6" Text="{Binding HealthText}" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                           Foreground="{StaticResource TextSecondary}" />
+                                                <TextBlock Grid.Column="8" Text="{Binding ScoreText}" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                           Foreground="{StaticResource TextTertiary}" />
+                                            </Grid>
+                                        </Button>
+                                        <DataTemplate.Triggers>
+                                            <DataTrigger Binding="{Binding Team}" Value="Terrorist">
+                                                <Setter TargetName="Dot" Property="Fill" Value="{StaticResource TeamT}" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding Team}" Value="CounterTerrorist">
+                                                <Setter TargetName="Dot" Property="Fill" Value="{StaticResource TeamCT}" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding IsBot}" Value="True">
+                                                <Setter TargetName="BotTag" Property="Text" Value=" BOT" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding IsAlive}" Value="False">
+                                                <Setter TargetName="RowContent" Property="Opacity" Value="0.55" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                <Setter TargetName="Row" Property="Background" Value="{StaticResource SelectedRow}" />
+                                            </DataTrigger>
+                                        </DataTemplate.Triggers>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Selected player -->
+                    <Border Style="{StaticResource LiveCard}" Padding="{StaticResource DetailCardPadding}" Margin="0,12,0,0">
+                        <Grid>
+                            <TextBlock Text="No player selected" Style="{StaticResource HintText}">
+                                <TextBlock.Visibility>
+                                    <Binding Path="HasSelection">
+                                        <Binding.Converter>
+                                            <services:InverseVisibilityConverter />
+                                        </Binding.Converter>
+                                    </Binding>
+                                </TextBlock.Visibility>
+                            </TextBlock>
+                            <StackPanel Visibility="{Binding HasSelection, Converter={StaticResource VisibleWhenTrue}}">
+                                <DockPanel>
+                                    <TextBlock DockPanel.Dock="Right" Text="{Binding SelectedTeamText}" Style="{StaticResource HintText}" />
+                                    <TextBlock x:Name="SelectedNameText" Text="{Binding SelectedName}" FontSize="{StaticResource FontSizeCardTitle}"
+                                               FontWeight="SemiBold" TextTrimming="CharacterEllipsis">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Foreground" Value="{StaticResource TeamSpectator}" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding SelectedTeam}" Value="Terrorist">
+                                                        <Setter Property="Foreground" Value="{StaticResource TeamT}" />
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding SelectedTeam}" Value="CounterTerrorist">
+                                                        <Setter Property="Foreground" Value="{StaticResource TeamCT}" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </DockPanel>
+
+                                <!-- HP bar: track plus a fill that is HP percent of the width. -->
+                                <Grid Height="{StaticResource HpBarHeight}" Margin="0,10,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="{Binding SelectedHealthPercent, Converter={livemap:PercentToStarConverter}}" />
+                                        <ColumnDefinition Width="{Binding SelectedHealthPercent, Converter={livemap:PercentToStarConverter Remainder=True}}" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.ColumnSpan="2" Background="{StaticResource CardBorder}" CornerRadius="{StaticResource RadiusHpBar}" />
+                                    <Border Grid.Column="0" CornerRadius="{StaticResource RadiusHpBar}">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Background" Value="{StaticResource TeamSpectator}" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding SelectedTeam}" Value="Terrorist">
+                                                        <Setter Property="Background" Value="{StaticResource TeamT}" />
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding SelectedTeam}" Value="CounterTerrorist">
+                                                        <Setter Property="Background" Value="{StaticResource TeamCT}" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                    </Border>
+                                </Grid>
+
+                                <Grid TextElement.FontSize="{StaticResource FontSizeSmall}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Health" Foreground="{StaticResource TextTertiary}" Margin="0,0,0,6" />
+                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding SelectedHealthText}" />
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Weapon" Foreground="{StaticResource TextTertiary}" Margin="0,0,0,6" />
+                                    <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal">
+                                        <Image Source="{Binding SelectedWeaponIcon}" Height="{StaticResource WeaponIconHeight}" Stretch="Uniform"
+                                               VerticalAlignment="Center" Margin="0,0,8,0" RenderOptions.BitmapScalingMode="NearestNeighbor" />
+                                        <TextBlock Text="{Binding SelectedWeaponText}" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Position" Foreground="{StaticResource TextTertiary}" Margin="0,0,0,6" />
+                                    <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SelectedPositionText}" FontFamily="{StaticResource MonoFont}" />
+                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Glow" Foreground="{StaticResource TextTertiary}" />
+                                    <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal">
+                                        <Rectangle Width="10" Height="10" Margin="0,0,6,0" VerticalAlignment="Center"
+                                                   Visibility="{Binding SelectedHasGlow, Converter={StaticResource VisibleWhenTrue}}">
+                                            <Rectangle.Fill>
+                                                <SolidColorBrush Color="{Binding SelectedGlowColor}" />
+                                            </Rectangle.Fill>
+                                        </Rectangle>
+                                        <TextBlock Text="{Binding SelectedGlowText}" />
+                                    </StackPanel>
+                                </Grid>
+
+                                <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                                    <ToggleButton Content="Follow camera" Style="{StaticResource CardToggle}" Margin="0,0,8,0"
+                                                  IsChecked="{Binding IsFollowing, Mode=TwoWay}" />
+                                    <Button Content="Slay" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0" Command="{Binding SlayCommand}" />
+                                    <Button Content="Kick" Style="{StaticResource SecondaryButton}" Command="{Binding KickCommand}" />
+                                </StackPanel>
+
+                                <!-- Fun commands, at once like Slay. -->
+                                <TextBlock Text="Fun" Style="{StaticResource LabelText}" Margin="0,14,0,6" />
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                    <ComboBox Style="{StaticResource Select}" Width="110" ItemsSource="{Binding GlowColors}"
+                                              SelectedItem="{Binding GlowColor}" AutomationProperties.Name="Glow color" />
+                                    <Button Content="Glow" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0" Command="{Binding GlowCommand}" />
+                                </StackPanel>
+                                <WrapPanel>
+                                    <Button Content="Rocket" Style="{StaticResource SmallSecondaryButton}" Margin="0,0,6,6" Command="{Binding RocketCommand}" />
+                                    <Button Content="Godmode" Style="{StaticResource SmallSecondaryButton}" Margin="0,0,6,6" Command="{Binding GodmodeCommand}" />
+                                    <Button Content="Noclip" Style="{StaticResource SmallSecondaryButton}" Margin="0,0,6,6" Command="{Binding NoclipCommand}" />
+                                    <Button Content="Reset" Style="{StaticResource SmallSecondaryButton}" Margin="0,0,6,6" Command="{Binding ResetFunCommand}"
+                                            ToolTip="Glow, godmode and noclip off" />
+                                </WrapPanel>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- Kill feed -->
+                    <Border Style="{StaticResource LiveCard}" Margin="0,12,0,0">
+                        <StackPanel>
+                            <TextBlock Text="Kill feed" Style="{StaticResource SideCardTitleText}" Margin="0,0,0,8" />
+                            <ItemsControl ItemsSource="{Binding KillFeed}" Focusable="False">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <!-- Killer, the game's weapon icon (plus headshot icon), victim; like the in-game feed. -->
+                                        <WrapPanel Margin="0,0,0,6" Opacity="{Binding Opacity}" TextElement.FontSize="{StaticResource FontSizeSmall}">
+                                            <TextBlock x:Name="Killer" Text="{Binding Killer}" Foreground="{StaticResource TeamSpectator}"
+                                                       VerticalAlignment="Center" Margin="0,0,6,0" />
+                                            <Image x:Name="WeaponIcon" Source="{Binding WeaponIcon}" Stretch="None" VerticalAlignment="Center"
+                                                   RenderOptions.BitmapScalingMode="NearestNeighbor" Margin="0,0,4,0"
+                                                   Visibility="{Binding HasWeaponIcon, Converter={StaticResource VisibleWhenTrue}}"
+                                                   ToolTip="{Binding WeaponText}" AutomationProperties.Name="{Binding WeaponText}" />
+                                            <Image Source="{Binding HeadshotIcon}" Stretch="None" VerticalAlignment="Center"
+                                                   RenderOptions.BitmapScalingMode="NearestNeighbor" Margin="0,0,4,0"
+                                                   Visibility="{Binding HasHeadshotIcon, Converter={StaticResource VisibleWhenTrue}}"
+                                                   ToolTip="Headshot" />
+                                            <TextBlock Text="{Binding WeaponText}" Foreground="{StaticResource TextSecondary}" VerticalAlignment="Center"
+                                                       Margin="0,0,6,0">
+                                                <TextBlock.Visibility>
+                                                    <Binding Path="HasWeaponIcon">
+                                                        <Binding.Converter>
+                                                            <services:InverseVisibilityConverter />
+                                                        </Binding.Converter>
+                                                    </Binding>
+                                                </TextBlock.Visibility>
+                                            </TextBlock>
+                                            <TextBlock x:Name="Victim" Text="{Binding Victim}" Foreground="{StaticResource TeamSpectator}"
+                                                       VerticalAlignment="Center" />
+                                            <TextBlock x:Name="Humiliation" Text="" Foreground="{StaticResource Warning}" VerticalAlignment="Center"
+                                                       Margin="6,0,0,0" />
+                                        </WrapPanel>
+                                        <DataTemplate.Triggers>
+                                            <DataTrigger Binding="{Binding KillerTeam}" Value="Terrorist">
+                                                <Setter TargetName="Killer" Property="Foreground" Value="{StaticResource TeamT}" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding KillerTeam}" Value="CounterTerrorist">
+                                                <Setter TargetName="Killer" Property="Foreground" Value="{StaticResource TeamCT}" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding VictimTeam}" Value="Terrorist">
+                                                <Setter TargetName="Victim" Property="Foreground" Value="{StaticResource TeamT}" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding VictimTeam}" Value="CounterTerrorist">
+                                                <Setter TargetName="Victim" Property="Foreground" Value="{StaticResource TeamCT}" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding IsHumiliation}" Value="True">
+                                                <Setter TargetName="Humiliation" Property="Text" Value="Humiliation!" />
+                                            </DataTrigger>
+                                        </DataTemplate.Triggers>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <TextBlock Text="No kills yet." Style="{StaticResource HintText}">
+                                <TextBlock.Visibility>
+                                    <Binding Path="KillFeed.Count">
+                                        <Binding.Converter>
+                                            <services:ZeroToVisibleConverter />
+                                        </Binding.Converter>
+                                    </Binding>
+                                </TextBlock.Visibility>
+                            </TextBlock>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</UserControl>

@@ -1,0 +1,305 @@
+<UserControl x:Class="Cs2ServerControl.Bots.BotsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:services="clr-namespace:Cs2ServerControl.Services">
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="VisibleWhenTrue" />
+        <services:ZeroToVisibleConverter x:Key="VisibleWhenZero" />
+
+        <DataTemplate x:Key="OptionTemplate">
+            <TextBlock Text="{Binding Label}" />
+        </DataTemplate>
+
+        <Style x:Key="CvarName" TargetType="Run">
+            <Setter Property="FontFamily" Value="{StaticResource MonoFont}" />
+            <Setter Property="FontSize" Value="{StaticResource FontSizeSmall}" />
+            <Setter Property="Foreground" Value="{StaticResource TextTertiary}" />
+        </Style>
+
+        <Style x:Key="OptionCheckBox" TargetType="CheckBox" BasedOn="{StaticResource AccentCheckBox}">
+            <Setter Property="Margin" Value="0,0,0,12" />
+        </Style>
+    </UserControl.Resources>
+
+    <Grid Margin="{StaticResource PagePadding}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <DockPanel Grid.Row="0" Margin="0,0,0,16">
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock Text="Unsaved changes" FontSize="{StaticResource FontSizeSmall}" Foreground="{StaticResource Warning}"
+                           VerticalAlignment="Center" Margin="0,0,14,0"
+                           Visibility="{Binding IsDirty, Converter={StaticResource VisibleWhenTrue}}" />
+                <Button Content="Discard" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0"
+                        Command="{Binding DiscardCommand}" ToolTip="Back to the values in modes\base.cfg"
+                        Visibility="{Binding IsDirty, Converter={StaticResource VisibleWhenTrue}}" />
+                <TextBlock Text="{Binding ApplyError}" FontSize="{StaticResource FontSizeSmall}" Foreground="{StaticResource DangerText}"
+                           VerticalAlignment="Center" Margin="0,0,14,0" />
+                <!-- Where the values come from, and the way back to the package defaults (a draft too). -->
+                <TextBlock Text="{Binding SettingsSourceText}" FontSize="{StaticResource FontSizeSmall}" Foreground="{StaticResource TextTertiary}"
+                           VerticalAlignment="Center" Margin="0,0,10,0" />
+                <Button Content="Reset to defaults" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0" Command="{Binding ResetToDefaultsCommand}"
+                        ToolTip="Loads the package defaults; Apply removes your local_bots.cfg" />
+                <!-- A toggle: on Apply all bots leave and rejoin with the new difficulty. -->
+                <ToggleButton Content="Reconnect bots" Style="{StaticResource CardToggle}" Margin="0,0,8,0"
+                              IsChecked="{Binding IsReconnectPending, Mode=TwoWay}" IsEnabled="{Binding Connection.IsRunning}"
+                              ToolTip="On Apply, all bots leave and join again, so a new difficulty applies to them" />
+                <Button Content="Apply" Style="{StaticResource PrimaryButton}" Command="{Binding ApplyCommand}"
+                        IsEnabled="{Binding IsDirty}" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Bots" Style="{StaticResource PageTitleText}" />
+                <Border Background="{StaticResource ControlBackground}" CornerRadius="{StaticResource RadiusPill}"
+                        Padding="{StaticResource PillPadding}" Margin="14,0,0,0" VerticalAlignment="Center">
+                    <TextBlock Text="zBot from ReGameDLL" FontSize="{StaticResource FontSizeToolbar}" Foreground="{StaticResource TextSecondary}" />
+                </Border>
+                <TextBlock Text="{Binding HeaderInfo}" FontSize="{StaticResource FontSizeToolbar}" Foreground="{StaticResource TextTertiary}"
+                           VerticalAlignment="Center" Margin="14,0,0,0" />
+            </StackPanel>
+        </DockPanel>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" MinWidth="440" />
+                <ColumnDefinition Width="{StaticResource CardGapColumn}" />
+                <ColumnDefinition Width="*" MinWidth="420" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Left column -->
+            <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" Focusable="False">
+                <StackPanel>
+                    <!-- Difficulty -->
+                    <Border Style="{StaticResource Card}">
+                        <StackPanel>
+                            <TextBlock Text="Difficulty" Style="{StaticResource CardTitleText}" Margin="0,0,0,12" />
+                            <Border Background="{StaticResource InputBackground}" CornerRadius="{StaticResource RadiusRailItem}" Padding="4">
+                                <UniformGrid Columns="4" KeyboardNavigation.DirectionalNavigation="Cycle">
+                                    <RadioButton Content="Easy" Style="{StaticResource SegmentButton}" GroupName="Difficulty" Margin="0,0,4,0"
+                                                 IsChecked="{Binding IsEasy, Mode=TwoWay}" />
+                                    <RadioButton Content="Normal" Style="{StaticResource SegmentButton}" GroupName="Difficulty" Margin="0,0,4,0"
+                                                 IsChecked="{Binding IsNormal, Mode=TwoWay}" />
+                                    <RadioButton Content="Hard" Style="{StaticResource SegmentButton}" GroupName="Difficulty" Margin="0,0,4,0"
+                                                 IsChecked="{Binding IsHard, Mode=TwoWay}" />
+                                    <RadioButton Content="Expert" Style="{StaticResource SegmentButton}" GroupName="Difficulty"
+                                                 IsChecked="{Binding IsExpert, Mode=TwoWay}" />
+                                </UniformGrid>
+                            </Border>
+                            <TextBlock Text="{Binding DifficultyHint}" FontSize="{StaticResource FontSizeToolbar}" Foreground="{StaticResource TextTertiary}"
+                                       TextWrapping="Wrap" Margin="0,12,0,0" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Count and teams -->
+                    <Border Style="{StaticResource Card}" Margin="0,16,0,0">
+                        <StackPanel>
+                            <TextBlock Text="Count and teams" Style="{StaticResource CardTitleText}" Margin="0,0,0,12" />
+                            <Grid Margin="0,0,0,16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="12" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="12" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="Fill up to players" Style="{StaticResource LabelText}" />
+                                    <TextBox Style="{StaticResource TextInput}" Text="{Binding QuotaText, UpdateSourceTrigger=PropertyChanged}"
+                                             AutomationProperties.Name="Fill up to players" MaxLength="2" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="Behavior" Style="{StaticResource LabelText}" />
+                                    <ComboBox Style="{StaticResource Select}" ItemsSource="{Binding QuotaModeOptions}"
+                                              SelectedItem="{Binding QuotaMode}" ItemTemplate="{StaticResource OptionTemplate}"
+                                              AutomationProperties.Name="Behavior" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="4">
+                                    <TextBlock Text="Bot team" Style="{StaticResource LabelText}" />
+                                    <ComboBox Style="{StaticResource Select}" ItemsSource="{Binding JoinTeamOptions}"
+                                              SelectedItem="{Binding JoinTeam}" ItemTemplate="{StaticResource OptionTemplate}"
+                                              AutomationProperties.Name="Bot team" />
+                                </StackPanel>
+                            </Grid>
+                            <CheckBox Style="{StaticResource OptionCheckBox}" IsChecked="{Binding WaitForHuman}">
+                                <TextBlock>Bots wait until a human player joins <Run Text="bot_join_after_player" Style="{StaticResource CvarName}" /></TextBlock>
+                            </CheckBox>
+                            <CheckBox Style="{StaticResource OptionCheckBox}" IsChecked="{Binding AutoVacate}">
+                                <TextBlock>Bots make room for real players <Run Text="bot_auto_vacate" Style="{StaticResource CvarName}" /></TextBlock>
+                            </CheckBox>
+                            <CheckBox Style="{StaticResource OptionCheckBox}" IsChecked="{Binding DeathmatchOnly}">
+                                <TextBlock>Only fight, no bomb or hostages <Run Text="bot_deathmatch" Style="{StaticResource CvarName}" /></TextBlock>
+                            </CheckBox>
+                            <CheckBox Style="{StaticResource OptionCheckBox}" IsChecked="{Binding DeferToHuman}" Margin="0">
+                                <TextBlock>Players take over the objectives <Run Text="bot_defer_to_human" Style="{StaticResource CvarName}" /></TextBlock>
+                            </CheckBox>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Weapons -->
+                    <Border Style="{StaticResource Card}" Margin="0,16,0,0">
+                        <StackPanel>
+                            <TextBlock Text="Bot weapons" Style="{StaticResource CardTitleText}" Margin="0,0,0,12" />
+                            <UniformGrid Columns="2">
+                                <CheckBox Content="Pistols" Style="{StaticResource OptionCheckBox}" IsChecked="{Binding AllowPistols}" />
+                                <CheckBox Content="Shotguns" Style="{StaticResource OptionCheckBox}" IsChecked="{Binding AllowShotguns}" />
+                                <CheckBox Content="Submachine guns" Style="{StaticResource OptionCheckBox}" IsChecked="{Binding AllowSubMachineGuns}" />
+                                <CheckBox Content="Rifles" Style="{StaticResource OptionCheckBox}" IsChecked="{Binding AllowRifles}" />
+                                <CheckBox Content="Sniper rifles" Style="{StaticResource OptionCheckBox}" IsChecked="{Binding AllowSnipers}" />
+                                <CheckBox Content="Machine guns" Style="{StaticResource OptionCheckBox}" IsChecked="{Binding AllowMachineGuns}" />
+                                <CheckBox Content="Grenades" Style="{StaticResource OptionCheckBox}" IsChecked="{Binding AllowGrenades}" />
+                                <CheckBox Content="Shield" Style="{StaticResource OptionCheckBox}" IsChecked="{Binding AllowShield}" />
+                            </UniformGrid>
+                            <TextBlock Text="Radio and chat" Style="{StaticResource LabelText}" Margin="0,4,0,6" />
+                            <ComboBox Style="{StaticResource Select}" MaxWidth="{StaticResource SelectMaxWidth}" HorizontalAlignment="Left"
+                                      Width="{StaticResource SelectMaxWidth}" ItemsSource="{Binding ChatterOptions}"
+                                      SelectedItem="{Binding Chatter}" ItemTemplate="{StaticResource OptionTemplate}"
+                                      AutomationProperties.Name="Radio and chat" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Right column -->
+            <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto" Focusable="False">
+                <StackPanel>
+                    <!-- Navigation per map -->
+                    <Border Style="{StaticResource Card}">
+                        <StackPanel>
+                            <DockPanel Margin="0,0,0,12">
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                    <TextBlock Text="zBot creates missing files on first load" Style="{StaticResource HintText}" Margin="0,0,12,0" />
+                                    <Button Style="{StaticResource SmallSecondaryButton}" Command="{Binding QueueAllMissingCommand}"
+                                            Content="{Binding MissingNavCount}" ContentStringFormat="Generate all missing ({0})"
+                                            AutomationProperties.Name="Generate all missing navigation files"
+                                            ToolTip="Queues every map without a navigation file; Apply builds them in the hidden helper server" />
+                                </StackPanel>
+                                <TextBlock Text="Navigation per map" Style="{StaticResource CardTitleText}" />
+                            </DockPanel>
+                            <Border BorderBrush="{StaticResource CardBorder}" BorderThickness="{StaticResource BorderBottomOne}" Padding="4,0,0,6">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="150" />
+                                        <ColumnDefinition Width="120" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Map" Style="{StaticResource HintText}" />
+                                    <TextBlock Grid.Column="1" Text="Status" Style="{StaticResource HintText}" />
+                                    <TextBlock Grid.Column="2" Text="Action" Style="{StaticResource HintText}" HorizontalAlignment="Right" />
+                                </Grid>
+                            </Border>
+                            <TextBlock Text="No mapcycle files found. Run Install or repair on the Install screen." Style="{StaticResource HintText}" Margin="4,12,0,0"
+                                       Visibility="{Binding NavRows.Count, Converter={StaticResource VisibleWhenZero}}" />
+                            <!-- Own scroll area: with 60 maps the table would push Active bots out of sight. -->
+                            <ScrollViewer MaxHeight="{StaticResource NavTableMaxHeight}" VerticalScrollBarVisibility="Auto" Focusable="False">
+                            <ItemsControl ItemsSource="{Binding NavRows}" Focusable="False">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border BorderBrush="{StaticResource ConsoleBorder}" BorderThickness="{StaticResource BorderBottomOne}"
+                                                MinHeight="{StaticResource TableRowHeight}" Padding="4,4,0,4">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="150" />
+                                                    <ColumnDefinition Width="120" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="{Binding MapName}" FontFamily="{StaticResource MonoFont}"
+                                                           FontSize="{StaticResource FontSizeToolbar}" VerticalAlignment="Center" />
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                    <TextBlock x:Name="Status" Text="{Binding StatusText}" FontSize="{StaticResource FontSizeToolbar}"
+                                                               Foreground="{StaticResource SuccessPillText}" />
+                                                    <!-- zBot reports no percentage, only its steps; the bar just shows it is busy. -->
+                                                    <ProgressBar x:Name="Progress" Height="{StaticResource ProgressBarHeight}" Margin="0,4,12,0"
+                                                                 IsIndeterminate="True" Background="{StaticResource ControlBackground}"
+                                                                 Foreground="{StaticResource WireHigh}" BorderThickness="0" Visibility="Collapsed" />
+                                                    <TextBlock Text="{Binding Step}" FontSize="{StaticResource FontSizeCaption}" Foreground="{StaticResource TextTertiary}"
+                                                               Margin="0,3,0,0" TextTrimming="CharacterEllipsis"
+                                                               Visibility="{Binding HasStep, Converter={StaticResource VisibleWhenTrue}}" />
+                                                </StackPanel>
+                                                <Button Grid.Column="2" Content="{Binding ActionText}" Style="{StaticResource SmallSecondaryButton}"
+                                                        HorizontalAlignment="Right" MinWidth="110" IsEnabled="{Binding CanRunAction}"
+                                                        Command="{Binding DataContext.ToggleNavActionCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                        CommandParameter="{Binding}" AutomationProperties.Name="{Binding MapName, StringFormat=Navigation {0}}" />
+                                            </Grid>
+                                        </Border>
+                                        <DataTemplate.Triggers>
+                                            <DataTrigger Binding="{Binding State}" Value="Missing">
+                                                <Setter TargetName="Status" Property="Foreground" Value="{StaticResource Warning}" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding State}" Value="Queued">
+                                                <Setter TargetName="Status" Property="Foreground" Value="{StaticResource Accent}" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding State}" Value="Generating">
+                                                <Setter TargetName="Status" Property="Foreground" Value="{StaticResource WireHigh}" />
+                                                <Setter TargetName="Progress" Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                        </DataTemplate.Triggers>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            </ScrollViewer>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Active bots -->
+                    <Border Style="{StaticResource Card}" Margin="0,16,0,0">
+                        <StackPanel>
+                            <DockPanel Margin="0,0,0,8">
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                    <TextBlock Text="{Binding PendingAddsText}" Style="{StaticResource HintText}" Foreground="{StaticResource Accent}"
+                                               Margin="0,0,10,0" Visibility="{Binding HasPendingAdds, Converter={StaticResource VisibleWhenTrue}}" />
+                                    <Button Content="Add T bot" Style="{StaticResource SmallSecondaryButton}" Margin="0,0,8,0"
+                                            Command="{Binding AddTerroristBotCommand}" IsEnabled="{Binding Connection.IsRunning}" />
+                                    <Button Content="Add CT bot" Style="{StaticResource SmallSecondaryButton}"
+                                            Command="{Binding AddCounterTerroristBotCommand}" IsEnabled="{Binding Connection.IsRunning}" />
+                                </StackPanel>
+                                <TextBlock Text="Active bots" Style="{StaticResource CardTitleText}" VerticalAlignment="Center" />
+                            </DockPanel>
+                            <TextBlock Text="No bots on the server." Style="{StaticResource HintText}" Margin="0,4,0,4"
+                                       Visibility="{Binding ActiveBots.Count, Converter={StaticResource VisibleWhenZero}}" />
+                            <ItemsControl ItemsSource="{Binding ActiveBots}" Focusable="False">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid MinHeight="{StaticResource TableRowHeight}" Margin="0,0,0,4">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="10" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="90" />
+                                                <ColumnDefinition Width="70" />
+                                            </Grid.ColumnDefinitions>
+                                            <Ellipse x:Name="Dot" Grid.Column="0" Width="{StaticResource TeamDotSize}" Height="{StaticResource TeamDotSize}"
+                                                     Fill="{StaticResource TeamSpectator}" VerticalAlignment="Center" />
+                                            <TextBlock x:Name="BotName" Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis">
+                                                <Run Text="{Binding Name, Mode=OneWay}" FontSize="{StaticResource FontSizeBody}" />
+                                                <Run Text="{Binding TeamName, Mode=OneWay}" FontSize="{StaticResource FontSizeSmall}" Foreground="{StaticResource TextTertiary}" />
+                                            </TextBlock>
+                                            <TextBlock Grid.Column="2" Text="{Binding SkillText}" FontSize="{StaticResource FontSizeSmall}"
+                                                       Foreground="{StaticResource TextSecondary}" VerticalAlignment="Center" />
+                                            <Button Grid.Column="3" Content="{Binding KickText}" Style="{StaticResource SmallSecondaryButton}" HorizontalAlignment="Right"
+                                                    Command="{Binding DataContext.ToggleKickCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}" AutomationProperties.Name="{Binding Name, StringFormat=Kick {0}}" />
+                                        </Grid>
+                                        <DataTemplate.Triggers>
+                                            <DataTrigger Binding="{Binding IsKickPending}" Value="True">
+                                                <Setter TargetName="Dot" Property="Opacity" Value="0.4" />
+                                                <Setter TargetName="BotName" Property="TextDecorations" Value="Strikethrough" />
+                                                <Setter TargetName="BotName" Property="Foreground" Value="{StaticResource TextTertiary}" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding Team}" Value="Terrorist">
+                                                <Setter TargetName="Dot" Property="Fill" Value="{StaticResource TeamT}" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding Team}" Value="CounterTerrorist">
+                                                <Setter TargetName="Dot" Property="Fill" Value="{StaticResource TeamCT}" />
+                                            </DataTrigger>
+                                        </DataTemplate.Triggers>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</UserControl>

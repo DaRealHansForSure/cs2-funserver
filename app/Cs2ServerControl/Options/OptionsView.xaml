@@ -1,0 +1,204 @@
+<UserControl x:Class="Cs2ServerControl.Options.OptionsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="VisibleWhenTrue" />
+
+        <Style x:Key="HeaderCell" TargetType="TextBlock" BasedOn="{StaticResource HintText}">
+            <Setter Property="TextWrapping" Value="NoWrap" />
+        </Style>
+        <Style x:Key="Cell" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="{StaticResource FontSizeSmall}" />
+            <Setter Property="Foreground" Value="{StaticResource TextSecondary}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        </Style>
+    </UserControl.Resources>
+
+    <Grid Margin="{StaticResource PagePadding}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Header: a draft like every screen, Apply only with changes. -->
+        <DockPanel Grid.Row="0" Margin="0,0,0,16">
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock Text="{Binding ApplyError}" FontSize="{StaticResource FontSizeSmall}" Foreground="{StaticResource DangerText}"
+                           VerticalAlignment="Center" Margin="0,0,14,0" />
+                <StackPanel Orientation="Horizontal" Visibility="{Binding IsDirty, Converter={StaticResource VisibleWhenTrue}}">
+                    <TextBlock Text="Unsaved changes" FontSize="{StaticResource FontSizeSmall}" Foreground="{StaticResource Warning}"
+                               VerticalAlignment="Center" Margin="0,0,14,0" />
+                    <Button Content="Discard" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0" Command="{Binding DiscardCommand}"
+                            ToolTip="Back to the saved options" />
+                </StackPanel>
+                <Button Content="Apply" Style="{StaticResource PrimaryButton}" Command="{Binding ApplyCommand}" IsEnabled="{Binding IsDirty}" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Options" Style="{StaticResource PageTitleText}" />
+                <TextBlock Text="{Binding VersionText}" FontSize="{StaticResource FontSizeToolbar}" Foreground="{StaticResource TextTertiary}"
+                           VerticalAlignment="Center" Margin="16,0,0,0" />
+            </StackPanel>
+        </DockPanel>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Focusable="False">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" MinWidth="480" />
+                    <ColumnDefinition Width="{StaticResource CardGapColumn}" />
+                    <ColumnDefinition Width="*" MinWidth="480" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Left column -->
+                <StackPanel Grid.Column="0">
+                    <Border Style="{StaticResource Card}">
+                        <StackPanel>
+                            <DockPanel Margin="0,0,0,12">
+                                <TextBlock DockPanel.Dock="Right" Text="{Binding CurrentAddressText}" Style="{StaticResource HintText}" VerticalAlignment="Center" />
+                                <TextBlock Text="Network" Style="{StaticResource CardTitleText}" />
+                            </DockPanel>
+                            <TextBlock Text="Server address" Style="{StaticResource LabelText}" Margin="0,0,0,6" />
+                            <ComboBox Style="{StaticResource Select}" ItemsSource="{Binding AddressChoices}" SelectedItem="{Binding SelectedAddress}"
+                                      DisplayMemberPath="Label" IsEnabled="{Binding CanChangeServerOptions}" AutomationProperties.Name="Server address" />
+                            <TextBlock Style="{StaticResource HintText}" TextWrapping="Wrap" Margin="0,6,0,0"
+                                       Text="Automatic takes the network adapter with the router (default gateway). Pick another one for a LAN switch without a router, or when a VPN adapter gets in the way. Only while the server is stopped." />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{StaticResource Card}" Margin="0,16,0,0">
+                        <StackPanel>
+                            <TextBlock Text="Ports" Style="{StaticResource CardTitleText}" Margin="0,0,0,12" />
+                            <Border BorderBrush="{StaticResource CardBorder}" BorderThickness="{StaticResource BorderBottomOne}" Padding="0,0,0,6">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="120" />
+                                        <ColumnDefinition Width="100" />
+                                        <ColumnDefinition Width="64" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Port" Style="{StaticResource HeaderCell}" />
+                                    <TextBlock Grid.Column="1" Text="Protocol" Style="{StaticResource HeaderCell}" />
+                                    <TextBlock Grid.Column="2" Text="Number" Style="{StaticResource HeaderCell}" />
+                                    <TextBlock Grid.Column="3" Text="Used for" Style="{StaticResource HeaderCell}" />
+                                </Grid>
+                            </Border>
+                            <ItemsControl ItemsSource="{Binding Ports}" Focusable="False">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border BorderBrush="{StaticResource ConsoleBorder}" BorderThickness="{StaticResource BorderBottomOne}"
+                                                MinHeight="{StaticResource PlayerRowHeight}">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="120" />
+                                                    <ColumnDefinition Width="100" />
+                                                    <ColumnDefinition Width="64" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="{Binding Name}" Style="{StaticResource Cell}" Foreground="{StaticResource TextPrimary}" />
+                                                <TextBlock Grid.Column="1" Text="{Binding Protocol}" Style="{StaticResource Cell}" />
+                                                <TextBlock Grid.Column="2" Text="{Binding Port}" Style="{StaticResource Cell}" FontFamily="{StaticResource MonoFont}" />
+                                                <TextBlock Grid.Column="3" Text="{Binding Purpose}" Style="{StaticResource Cell}" />
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <TextBlock Style="{StaticResource HintText}" TextWrapping="Wrap" Margin="0,8,0,0"
+                                       Text="Fixed, the plugins and the players' games expect them. Only the first three need the firewall." />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{StaticResource Card}" Margin="0,16,0,0">
+                        <StackPanel>
+                            <DockPanel Margin="0,0,0,12">
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                    <Button Content="Check again" Style="{StaticResource SmallSecondaryButton}" Margin="0,0,8,0"
+                                            Command="{Binding CheckFirewallCommand}" />
+                                    <Button Content="Add or repair rules" Style="{StaticResource SmallSecondaryButton}"
+                                            Command="{Binding RepairFirewallCommand}"
+                                            ToolTip="Right away: Windows asks for administrator rights, then all rules are written fresh" />
+                                </StackPanel>
+                                <TextBlock Text="Windows Firewall" Style="{StaticResource CardTitleText}" VerticalAlignment="Center" />
+                            </DockPanel>
+                            <ItemsControl ItemsSource="{Binding FirewallRules}" Focusable="False">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border BorderBrush="{StaticResource ConsoleBorder}" BorderThickness="{StaticResource BorderBottomOne}"
+                                                MinHeight="{StaticResource PlayerRowHeight}">
+                                            <DockPanel>
+                                                <TextBlock x:Name="State" DockPanel.Dock="Right" Text="{Binding StateText}" Style="{StaticResource Cell}"
+                                                           Foreground="{StaticResource SuccessPillText}" />
+                                                <TextBlock Text="{Binding Rule.Name}" Style="{StaticResource Cell}" Foreground="{StaticResource TextPrimary}" />
+                                            </DockPanel>
+                                        </Border>
+                                        <DataTemplate.Triggers>
+                                            <DataTrigger Binding="{Binding IsMissing}" Value="True">
+                                                <Setter TargetName="State" Property="Foreground" Value="{StaticResource Warning}" />
+                                            </DataTrigger>
+                                        </DataTemplate.Triggers>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <TextBlock Text="{Binding FirewallSummary}" Style="{StaticResource HintText}" Margin="0,8,0,0" TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- Right column -->
+                <StackPanel Grid.Column="2">
+                    <Border Style="{StaticResource Card}">
+                        <StackPanel>
+                            <TextBlock Text="RCON password" Style="{StaticResource CardTitleText}" Margin="0,0,0,8" />
+                            <TextBlock Style="{StaticResource HintText}" TextWrapping="Wrap" Margin="0,0,0,12"
+                                       Text="The window talks to the server with a random password that is never shown. A new one is useful when it ended up somewhere it should not. Only while the server is stopped." />
+                            <CheckBox Content="Create a new password on Apply" Style="{StaticResource AccentCheckBox}"
+                                      IsChecked="{Binding IsNewPasswordPending}" IsEnabled="{Binding CanChangeServerOptions}" />
+                            <TextBlock Text="{Binding PasswordMessage}" Style="{StaticResource HintText}" Margin="0,8,0,0" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{StaticResource Card}" Margin="0,16,0,0">
+                        <StackPanel>
+                            <TextBlock Text="Window" Style="{StaticResource CardTitleText}" Margin="0,0,0,12" />
+                            <TextBlock Text="Open on" Style="{StaticResource LabelText}" Margin="0,0,0,6" />
+                            <ComboBox Style="{StaticResource Select}" ItemsSource="{Binding StartScreens}" SelectedItem="{Binding SelectedStartScreen}"
+                                      DisplayMemberPath="Label" AutomationProperties.Name="Open on" />
+                            <TextBlock Style="{StaticResource HintText}" TextWrapping="Wrap" Margin="0,6,0,0"
+                                       Text="Before the server is installed the window always opens on Install." />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{StaticResource Card}" Margin="0,16,0,0">
+                        <StackPanel>
+                            <TextBlock Text="Folders" Style="{StaticResource CardTitleText}" Margin="0,0,0,12" />
+                            <DockPanel Margin="0,0,0,8">
+                                <Button DockPanel.Dock="Right" Content="Open" Style="{StaticResource SmallSecondaryButton}" MinWidth="64"
+                                        Command="{Binding OpenFolderCommand}" CommandParameter="package" AutomationProperties.Name="Open the package folder" />
+                                <StackPanel>
+                                    <TextBlock Text="Package" Style="{StaticResource Cell}" Foreground="{StaticResource TextPrimary}" />
+                                    <TextBlock Text="{Binding PackageFolder}" Style="{StaticResource HintText}" TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                            </DockPanel>
+                            <DockPanel Margin="0,0,0,8">
+                                <Button DockPanel.Dock="Right" Content="Open" Style="{StaticResource SmallSecondaryButton}" MinWidth="64"
+                                        Command="{Binding OpenFolderCommand}" CommandParameter="logs" AutomationProperties.Name="Open the plugin logs folder" />
+                                <StackPanel>
+                                    <TextBlock Text="Plugin logs" Style="{StaticResource Cell}" Foreground="{StaticResource TextPrimary}" />
+                                    <TextBlock Text="server\cstrike\addons\amxmodx\logs" Style="{StaticResource HintText}" />
+                                </StackPanel>
+                            </DockPanel>
+                            <DockPanel>
+                                <Button DockPanel.Dock="Right" Content="Open" Style="{StaticResource SmallSecondaryButton}" MinWidth="64"
+                                        Command="{Binding OpenFolderCommand}" CommandParameter="settings" AutomationProperties.Name="Open the settings folder" />
+                                <StackPanel>
+                                    <TextBlock Text="Window settings" Style="{StaticResource Cell}" Foreground="{StaticResource TextPrimary}" />
+                                    <TextBlock Text="{Binding SettingsFile}" Style="{StaticResource HintText}" TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                            </DockPanel>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Grid>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

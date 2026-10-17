@@ -1,0 +1,357 @@
+<Window x:Class="Cs2ServerControl.Shell.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:shell="clr-namespace:Cs2ServerControl.Shell"
+        xmlns:livemap="clr-namespace:Cs2ServerControl.LiveMap"
+        xmlns:server="clr-namespace:Cs2ServerControl.Server"
+        xmlns:bots="clr-namespace:Cs2ServerControl.Bots"
+        xmlns:stats="clr-namespace:Cs2ServerControl.Stats"
+        xmlns:maps="clr-namespace:Cs2ServerControl.Maps"
+        xmlns:options="clr-namespace:Cs2ServerControl.Options"
+        xmlns:install="clr-namespace:Cs2ServerControl.Install"
+        Title="CS 1.6 Server Control"
+        Icon="pack://application:,,,/Cs2ServerControl;component/app.ico"
+        MinWidth="1100" MinHeight="700" Width="1440" Height="900"
+        Background="{StaticResource WindowBackground}"
+        Foreground="{StaticResource TextPrimary}"
+        FontFamily="{StaticResource UiFont}"
+        FontSize="{StaticResource FontSizeBody}"
+        UseLayoutRounding="True"
+        TextOptions.TextFormattingMode="Display">
+
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="{StaticResource TitleBarHeight}" ResizeBorderThickness="6"
+                      GlassFrameThickness="0" CornerRadius="0" UseAeroCaptionButtons="False" />
+    </WindowChrome.WindowChrome>
+
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="VisibleWhenTrue" />
+
+        <!-- Caption buttons: 46 wide, glyph in TextSecondary. -->
+        <Style x:Key="CaptionButton" TargetType="Button">
+            <Setter Property="Width" Value="{StaticResource CaptionButtonWidth}" />
+            <Setter Property="Height" Value="{StaticResource TitleBarHeight}" />
+            <Setter Property="Foreground" Value="{StaticResource TextSecondary}" />
+            <Setter Property="Background" Value="{StaticResource Transparent}" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="WindowChrome.IsHitTestVisibleInChrome" Value="True" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{StaticResource ControlBackground}" />
+                    <Setter Property="Foreground" Value="{StaticResource TextPrimary}" />
+                </Trigger>
+                <Trigger Property="Tag" Value="Hover">
+                    <Setter Property="Background" Value="{StaticResource ControlBackground}" />
+                    <Setter Property="Foreground" Value="{StaticResource TextPrimary}" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="CloseCaptionButton" TargetType="Button" BasedOn="{StaticResource CaptionButton}">
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{StaticResource DangerBorder}" />
+                    <Setter Property="Foreground" Value="{StaticResource TextPrimary}" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Rail item: icon (Tag holds the geometry) over the label. -->
+        <Style x:Key="RailItem" TargetType="RadioButton">
+            <Setter Property="FocusVisualStyle" Value="{StaticResource AccentFocusVisual}" />
+            <Setter Property="MinHeight" Value="{StaticResource RailItemHeight}" />
+            <Setter Property="Foreground" Value="{StaticResource TextSecondary}" />
+            <Setter Property="Background" Value="{StaticResource Transparent}" />
+            <Setter Property="FontSize" Value="{StaticResource FontSizeCaption}" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Margin" Value="0,0,0,4" />
+            <Setter Property="ToolTipService.ShowOnDisabled" Value="True" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Grid Background="{TemplateBinding Background}">
+                            <Border x:Name="ActivePill" Width="3" Height="18" HorizontalAlignment="Left" VerticalAlignment="Top"
+                                    Margin="0,10,0,0" Background="{StaticResource Accent}" CornerRadius="{StaticResource RadiusRailPill}"
+                                    Visibility="Collapsed" />
+                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,8,0,8">
+                                <Viewbox Width="{StaticResource RailIconSize}" Height="{StaticResource RailIconSize}">
+                                    <!-- A binding, not TemplateBinding: only a binding converts the path string in Tag to a Geometry. -->
+                                    <Path Width="24" Height="24" Data="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}" Stroke="{TemplateBinding Foreground}"
+                                          StrokeThickness="{StaticResource RailIconStroke}" StrokeLineJoin="Round"
+                                          StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                                </Viewbox>
+                                <ContentPresenter HorizontalAlignment="Center" Margin="0,4,0,0" />
+                            </StackPanel>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="ActivePill" Property="Visibility" Value="Visible" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Foreground" Value="{StaticResource TextPrimary}" />
+                </Trigger>
+                <Trigger Property="IsChecked" Value="True">
+                    <Setter Property="Background" Value="{StaticResource NavActive}" />
+                    <Setter Property="Foreground" Value="{StaticResource TextPrimary}" />
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Foreground" Value="{StaticResource TextDisabled}" />
+                    <Setter Property="Cursor" Value="Arrow" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="InfoLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="{StaticResource FontSizeCaption}" />
+            <Setter Property="Foreground" Value="{StaticResource TextTertiary}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="0,0,6,0" />
+        </Style>
+        <Style x:Key="InfoValue" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="{StaticResource FontSizeToolbar}" />
+            <Setter Property="Foreground" Value="{StaticResource TextPrimary}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="0,0,22,0" />
+        </Style>
+
+        <!-- Confirmation card in the modal layer. -->
+        <DataTemplate DataType="{x:Type shell:ConfirmModal}">
+            <Border Style="{StaticResource Card}" Width="{StaticResource ConfirmWidth}">
+                <StackPanel>
+                    <TextBlock Text="{Binding Title}" Style="{StaticResource CardTitleText}" Margin="0,0,0,10" />
+                    <TextBlock Text="{Binding Message}" FontSize="{StaticResource FontSizeBody}" TextWrapping="Wrap" Margin="0,0,0,16" />
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Content="Cancel" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0" Command="{Binding CloseCommand}" />
+                        <Button Content="{Binding OkText}" Style="{StaticResource PrimaryButton}" Command="{Binding OkCommand}" IsDefault="True" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </DataTemplate>
+
+        <!-- Admin account, asked once by the installer. -->
+        <DataTemplate DataType="{x:Type install:AdminAccountModal}">
+            <Border Style="{StaticResource Card}" Width="{StaticResource ConfirmWidth}">
+                <StackPanel>
+                    <TextBlock Text="Admin account" Style="{StaticResource CardTitleText}" Margin="0,0,0,10" />
+                    <TextBlock Text="Your player name and a password for the admin menus in game (amx_funmode, the fun menu)."
+                               Style="{StaticResource HintText}" Margin="0,0,0,12" />
+                    <TextBlock Text="Player name" Style="{StaticResource LabelText}" />
+                    <TextBox Style="{StaticResource TextInput}" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,10"
+                             AutomationProperties.Name="Player name" />
+                    <TextBlock Text="Password" Style="{StaticResource LabelText}" />
+                    <TextBox Style="{StaticResource TextInput}" Text="{Binding Password, UpdateSourceTrigger=PropertyChanged}"
+                             AutomationProperties.Name="Admin password" />
+                    <TextBlock Text="{Binding Error}" Style="{StaticResource HintText}" Foreground="{StaticResource Warning}" Margin="0,8,0,0" />
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+                        <Button Content="Skip" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0" Command="{Binding CloseCommand}" />
+                        <Button Content="Save" Style="{StaticResource PrimaryButton}" Command="{Binding SaveCommand}" IsDefault="True" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </DataTemplate>
+
+        <DataTemplate DataType="{x:Type server:MapDetailsViewModel}">
+            <server:MapDetailsView />
+        </DataTemplate>
+
+        <Style x:Key="StatusText" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="{StaticResource FontSizeSmall}" />
+            <Setter Property="Foreground" Value="{StaticResource TextSecondary}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+    </Window.Resources>
+
+    <Grid x:Name="RootGrid">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Title bar -->
+        <Border Grid.Row="0" Height="{StaticResource TitleBarHeight}" Background="{StaticResource WindowBackground}"
+                BorderBrush="{StaticResource DividerSubtle}" BorderThickness="{StaticResource BorderBottomOne}">
+            <Grid>
+                <StackPanel Orientation="Horizontal" Margin="{StaticResource TitleBarPadding}" VerticalAlignment="Center">
+                    <Viewbox Width="16" Height="16" VerticalAlignment="Center">
+                        <Path Width="20" Height="20" Stroke="{StaticResource Accent}" StrokeThickness="2"
+                              Data="M 10 4 A 6 6 0 1 0 10.001 4 Z M 10 0 L 10 5 M 10 15 L 10 20 M 0 10 L 5 10 M 15 10 L 20 10" />
+                    </Viewbox>
+                    <TextBlock Text="CS 1.6 Server Control" Margin="10,0,0,0" FontSize="{StaticResource FontSizeSmall}"
+                               Foreground="{StaticResource TextSecondary}" VerticalAlignment="Center" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Style="{StaticResource CaptionButton}" Click="OnMinimize" AutomationProperties.Name="Minimize">
+                        <Path Data="M 0 0.5 L 10 0.5" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1" />
+                    </Button>
+                    <Button x:Name="MaximizeButton" Style="{StaticResource CaptionButton}" Click="OnMaximize" AutomationProperties.Name="Maximize">
+                        <Path x:Name="MaximizeGlyph" Data="M 0.5 0.5 L 9.5 0.5 L 9.5 9.5 L 0.5 9.5 Z"
+                              Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1" />
+                    </Button>
+                    <Button Style="{StaticResource CloseCaptionButton}" Click="OnClose" AutomationProperties.Name="Close">
+                        <Path Data="M 0 0 L 10 10 M 10 0 L 0 10" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1" />
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="{StaticResource RailColumnWidth}" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Navigation rail -->
+            <Border Grid.Column="0" Background="{StaticResource RailBackground}" Padding="{StaticResource RailPadding}">
+                <DockPanel LastChildFill="False" KeyboardNavigation.TabNavigation="Once" KeyboardNavigation.DirectionalNavigation="Cycle">
+                    <RadioButton DockPanel.Dock="Bottom" Style="{StaticResource RailItem}" Content="Options" GroupName="Rail" Margin="0"
+                                 IsChecked="{Binding IsOptionsSelected, Mode=TwoWay}"
+                                 Tag="M 12 9 A 3 3 0 1 0 12.001 9 Z M 12 3 L 12 5.5 M 12 18.5 L 12 21 M 3 12 L 5.5 12 M 18.5 12 L 21 12 M 5.6 5.6 L 7.4 7.4 M 16.6 16.6 L 18.4 18.4 M 5.6 18.4 L 7.4 16.6 M 16.6 7.4 L 18.4 5.6" />
+                    <RadioButton DockPanel.Dock="Bottom" Style="{StaticResource RailItem}" Content="Install" GroupName="Rail"
+                                 IsChecked="{Binding IsInstallSelected, Mode=TwoWay}"
+                                 Tag="M 12 3 L 12 15 M 7 10 L 12 15 L 17 10 M 4 19 L 20 19" />
+                    <RadioButton DockPanel.Dock="Top" Style="{StaticResource RailItem}" Content="Live Map" GroupName="Rail"
+                                 IsChecked="{Binding IsLiveMapSelected, Mode=TwoWay}"
+                                 Tag="M 12 3 L 20 7.5 L 20 16.5 L 12 21 L 4 16.5 L 4 7.5 Z M 4 7.5 L 12 12 L 20 7.5 M 12 12 L 12 21" />
+                    <RadioButton DockPanel.Dock="Top" Style="{StaticResource RailItem}" Content="Server" GroupName="Rail"
+                                 IsChecked="{Binding IsServerSelected, Mode=TwoWay}"
+                                 Tag="M 4 4 L 20 4 L 20 10.5 L 4 10.5 Z M 4 13.5 L 20 13.5 L 20 20 L 4 20 Z M 7.5 7.25 L 9 7.25 M 7.5 16.75 L 9 16.75" />
+                    <RadioButton DockPanel.Dock="Top" Style="{StaticResource RailItem}" Content="Bots" GroupName="Rail"
+                                 IsChecked="{Binding IsBotsSelected, Mode=TwoWay}"
+                                 Tag="M 6 8 L 18 8 L 18 19 L 6 19 Z M 12 8 L 12 4.5 M 9.5 12.5 L 9.5 13.5 M 14.5 12.5 L 14.5 13.5 M 9.5 16 L 14.5 16 M 4 12 L 4 15 M 20 12 L 20 15" />
+                    <RadioButton DockPanel.Dock="Top" Style="{StaticResource RailItem}" Content="Maps" GroupName="Rail"
+                                 IsChecked="{Binding IsMapsSelected, Mode=TwoWay}"
+                                 Tag="M 12 4 L 20 8 L 12 12 L 4 8 Z M 4 12 L 12 16 L 20 12 M 4 16 L 12 20 L 20 16" />
+                    <RadioButton DockPanel.Dock="Top" Style="{StaticResource RailItem}" Content="Stats" GroupName="Rail"
+                                 IsChecked="{Binding IsStatsSelected, Mode=TwoWay}"
+                                 Tag="M 4 20 L 20 20 M 6 20 L 6 13 M 10.5 20 L 10.5 7 M 15 20 L 15 10 M 19 20 L 19 4" />
+                </DockPanel>
+            </Border>
+
+            <Grid Grid.Column="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <!-- Server facts on every screen. -->
+                <Border Grid.Row="0" DataContext="{Binding InfoBar}" Background="{StaticResource RailBackground}"
+                        BorderBrush="{StaticResource DividerSubtle}" BorderThickness="{StaticResource BorderBottomOne}"
+                        Padding="{StaticResource InfoBarPadding}">
+                    <StackPanel Orientation="Horizontal">
+                        <Border Width="48" Height="27" Background="{StaticResource InputBackground}" BorderBrush="{StaticResource CardBorder}"
+                                BorderThickness="{StaticResource BorderOne}" Margin="0,0,10,0" VerticalAlignment="Center"
+                                Visibility="{Binding HasMapThumbnail, Converter={StaticResource VisibleWhenTrue}}">
+                            <Image Source="{Binding MapThumbnail}" Stretch="UniformToFill" RenderOptions.BitmapScalingMode="HighQuality" />
+                        </Border>
+                        <TextBlock Text="{Binding MapName}" FontFamily="{StaticResource MonoFont}" FontSize="{StaticResource FontSizeBody}"
+                                   FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,24,0" />
+                        <TextBlock Style="{StaticResource InfoLabel}" Text="MODE" />
+                        <TextBlock Style="{StaticResource InfoValue}" Text="{Binding ModeText}" />
+                        <TextBlock Style="{StaticResource InfoLabel}" Text="PLAYERS" />
+                        <TextBlock Style="{StaticResource InfoValue}" Text="{Binding PlayersText}" />
+                        <TextBlock Style="{StaticResource InfoLabel}" Text="NEXT" />
+                        <TextBlock Style="{StaticResource InfoValue}" Text="{Binding NextMapText}" FontFamily="{StaticResource MonoFont}" />
+                        <TextBlock Style="{StaticResource InfoLabel}" Text="TIME LEFT" />
+                        <TextBlock Style="{StaticResource InfoValue}" Text="{Binding TimeLeftText}" FontFamily="{StaticResource MonoFont}" />
+                        <TextBlock Style="{StaticResource InfoLabel}" Text="ADDRESS" />
+                        <TextBlock Style="{StaticResource InfoValue}" Text="{Binding AddressText}" FontFamily="{StaticResource MonoFont}" />
+                        <TextBlock Style="{StaticResource InfoLabel}" Text="UPTIME" />
+                        <TextBlock Style="{StaticResource InfoValue}" Text="{Binding UptimeText}" FontFamily="{StaticResource MonoFont}" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Screens stay alive while hidden, so the 3D viewport is created only once. -->
+                <Grid Grid.Row="1">
+                <livemap:LiveMapView x:Name="LiveMapScreen" DataContext="{Binding LiveMap}"
+                                     Visibility="{Binding DataContext.IsLiveMapSelected, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource VisibleWhenTrue}}" />
+                <server:ServerView x:Name="ServerScreen" DataContext="{Binding Server}"
+                                   Visibility="{Binding DataContext.IsServerSelected, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource VisibleWhenTrue}}" />
+                <bots:BotsView x:Name="BotsScreen" DataContext="{Binding Bots}"
+                               Visibility="{Binding DataContext.IsBotsSelected, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource VisibleWhenTrue}}" />
+                <stats:StatsView x:Name="StatsScreen" DataContext="{Binding Stats}"
+                                 Visibility="{Binding DataContext.IsStatsSelected, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource VisibleWhenTrue}}" />
+                <install:InstallView x:Name="InstallScreen" DataContext="{Binding Install}"
+                                     Visibility="{Binding DataContext.IsInstallSelected, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource VisibleWhenTrue}}" />
+                <maps:MapsView x:Name="MapsScreen" DataContext="{Binding Maps}"
+                               Visibility="{Binding DataContext.IsMapsSelected, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource VisibleWhenTrue}}" />
+                <options:OptionsView x:Name="OptionsScreen" DataContext="{Binding Options}"
+                                     Visibility="{Binding DataContext.IsOptionsSelected, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource VisibleWhenTrue}}" />
+                </Grid>
+            </Grid>
+        </Grid>
+
+        <!-- Status bar -->
+        <Border Grid.Row="2" MinHeight="{StaticResource StatusBarHeight}" Background="{StaticResource RailBackground}"
+                BorderBrush="{StaticResource DividerSubtle}" BorderThickness="{StaticResource BorderTopOne}"
+                Padding="{StaticResource StatusBarPadding}">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Right" Style="{StaticResource StatusText}" Foreground="{StaticResource TextTertiary}"
+                           Text="{Binding StatusRight}" />
+                <StackPanel Orientation="Horizontal">
+                    <Ellipse Width="{StaticResource StatusDotSize}" Height="{StaticResource StatusDotSize}" VerticalAlignment="Center" Margin="0,0,6,0">
+                        <Ellipse.Style>
+                            <Style TargetType="Ellipse">
+                                <Setter Property="Fill" Value="{StaticResource TextDisabled}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsServerRunning}" Value="True">
+                                        <Setter Property="Fill" Value="{StaticResource SuccessDot}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Ellipse.Style>
+                    </Ellipse>
+                    <TextBlock>
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock" BasedOn="{StaticResource StatusText}">
+                                <Setter Property="Text" Value="Server stopped" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsServerRunning}" Value="True">
+                                        <Setter Property="Text" Value="Server running" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                    <ItemsControl ItemsSource="{Binding StatusItems}" Focusable="False">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding}" Margin="18,0,0,0" Style="{StaticResource StatusText}" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- Modal layer: a dark scrim over everything below the title bar, the
+             dialog card in the middle. The title bar stays usable. -->
+        <Grid x:Name="ModalLayer" Grid.Row="1" Grid.RowSpan="2" Visibility="Collapsed"
+              KeyboardNavigation.TabNavigation="Cycle" KeyboardNavigation.ControlTabNavigation="Cycle">
+            <Grid.InputBindings>
+                <KeyBinding Key="Escape" Command="{Binding Modal.CloseCommand}" />
+            </Grid.InputBindings>
+            <Rectangle Fill="{StaticResource ModalScrim}" />
+            <ContentControl x:Name="ModalContent" Content="{Binding Modal}" Focusable="False"
+                            HorizontalAlignment="Center" VerticalAlignment="Center" />
+        </Grid>
+    </Grid>
+</Window>

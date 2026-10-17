@@ -1,0 +1,20 @@
+# Created by the installer at runtime: the CS2 dedicated server, SteamCMD and
+# the download cache.
+/server/
+tools/steamcmd/
+tools/downloads/
+tools/work/
+
+*.mdmp
+
+# Server Control app: build output and the published exe (rebuilt with
+# dotnet publish).
+app/**/bin/
+app/**/obj/
+app/publish/
+app/.artifacts/
+plugins/**/bin/
+plugins/**/obj/
+CS2_SERVER_CONTROL.exe
+release/
+tools/previews/

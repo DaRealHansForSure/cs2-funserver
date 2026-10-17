@@ -1,0 +1,88 @@
+<UserControl x:Class="Cs2ServerControl.Server.MapDetailsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:services="clr-namespace:Cs2ServerControl.Services"
+             Width="{StaticResource MapDetailsWidth}">
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="VisibleWhenTrue" />
+        <services:InverseVisibilityConverter x:Key="VisibleWhenFalse" />
+    </UserControl.Resources>
+
+    <Border Style="{StaticResource Card}">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <DockPanel Grid.Row="0" Margin="0,0,0,14">
+                <Button DockPanel.Dock="Right" Content="Close" Style="{StaticResource SecondaryButton}" Command="{Binding CloseCommand}"
+                        ToolTip="Close (Esc)" />
+                <TextBlock Text="{Binding MapName}" FontFamily="{StaticResource MonoFont}" FontSize="{StaticResource FontSizeMapTitle}"
+                           FontWeight="SemiBold" VerticalAlignment="Center" />
+            </DockPanel>
+
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="{StaticResource CardGapColumn}" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Left: screenshot, then the facts. -->
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="Preview" Style="{StaticResource LabelText}" />
+                    <Border Height="240" Background="{StaticResource ViewportBackground}" BorderBrush="{StaticResource ConsoleBorder}"
+                            BorderThickness="{StaticResource BorderOne}">
+                        <Grid>
+                            <Image Source="{Binding Preview}" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality" />
+                            <TextBlock Text="No preview picture" Style="{StaticResource HintText}" HorizontalAlignment="Center"
+                                       Visibility="{Binding HasPreview, Converter={StaticResource VisibleWhenFalse}}" />
+                        </Grid>
+                    </Border>
+
+                    <TextBlock Text="Stats" Style="{StaticResource LabelText}" Margin="0,14,0,6" />
+                    <TextBlock Text="Reading map and logs..." Style="{StaticResource HintText}"
+                               Visibility="{Binding IsLoading, Converter={StaticResource VisibleWhenTrue}}" />
+                    <ItemsControl ItemsSource="{Binding Stats}" Focusable="False">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border BorderBrush="{StaticResource ConsoleBorder}" BorderThickness="{StaticResource BorderBottomOne}" Padding="0,5,0,5">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="110" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="{Binding Label}" FontSize="{StaticResource FontSizeSmall}" Foreground="{StaticResource TextTertiary}" />
+                                        <TextBlock Grid.Column="1" Text="{Binding Value}" FontSize="{StaticResource FontSizeSmall}" TextWrapping="Wrap" />
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+
+                <!-- Right: top-down overview of the real geometry. -->
+                <StackPanel Grid.Column="2">
+                    <TextBlock Text="Overview (from above, north up)" Style="{StaticResource LabelText}" />
+                    <Border Background="{StaticResource ViewportBackground}" BorderBrush="{StaticResource ConsoleBorder}"
+                            BorderThickness="{StaticResource BorderOne}">
+                        <Grid>
+                            <Image Source="{Binding Overview}" Stretch="Uniform" />
+                            <TextBlock Text="{Binding OverviewMessage}" Style="{StaticResource HintText}" HorizontalAlignment="Center"
+                                       Margin="0,120,0,120" />
+                        </Grid>
+                    </Border>
+                </StackPanel>
+            </Grid>
+
+            <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+                <Button Content="Set as next map" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0"
+                        Command="{Binding SetNextMapCommand}" IsEnabled="{Binding IsServerRunning}" />
+                <Button Content="{Binding PickText}" Style="{StaticResource PrimaryButton}" Command="{Binding PickCommand}" IsDefault="True"
+                        Visibility="{Binding CanPick, Converter={StaticResource VisibleWhenTrue}}" />
+            </StackPanel>
+        </Grid>
+    </Border>
+</UserControl>
