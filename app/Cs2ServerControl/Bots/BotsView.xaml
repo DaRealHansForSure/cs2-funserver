@@ -178,6 +178,9 @@
                                 </StackPanel>
                                 <TextBlock Text="Active bots" Style="{StaticResource CardTitleText}" VerticalAlignment="Center" />
                             </DockPanel>
+                            <TextBlock Style="{StaticResource HintText}" Foreground="{StaticResource Warning}" TextWrapping="Wrap" Margin="0,0,0,8"
+                                       Visibility="{Binding IsWaitingForHuman, Converter={StaticResource VisibleWhenTrue}}"
+                                       Text="The bots wait for a human player: they join the teams as soon as someone connects. To play with bots only, untick &quot;Bots wait until a human player joins&quot; and Apply." />
                             <TextBlock Text="No bots on the server." Style="{StaticResource HintText}" Margin="0,4,0,4"
                                        Visibility="{Binding ActiveBots.Count, Converter={StaticResource VisibleWhenZero}}" />
                             <ItemsControl ItemsSource="{Binding ActiveBots}" Focusable="False">

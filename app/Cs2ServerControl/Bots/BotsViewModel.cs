@@ -51,6 +51,9 @@ public sealed partial class BotsViewModel : ObservableObject, IScreen {
     private readonly HashSet<string> _pendingKicks = new(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyDictionary<string, int> _skills = new Dictionary<string, int>();
     private IReadOnlyList<LivePlayer> _lastBots = [];
+    private int _humanCount;
+    // What the server has, not the draft: the hint must not vanish before Apply.
+    private bool _savedWaitForHuman = true;
     private bool _isLoading;
 
     [ObservableProperty]
@@ -378,6 +381,8 @@ public sealed partial class BotsViewModel : ObservableObject, IScreen {
             await _connection.QueryAsync(string.Join(";", cvars.Select(cvar => $"{cvar.Key} \"{cvar.Value}\"")));
         }
         AreSettingsChanged = false;
+        _savedWaitForHuman = WaitForHuman;
+        OnPropertyChanged(nameof(IsWaitingForHuman));
         return true;
     }
 
@@ -430,6 +435,8 @@ public sealed partial class BotsViewModel : ObservableObject, IScreen {
         ShowValues(values);
         HasCustomSettings = custom.Count > 0;
         AreSettingsChanged = false;
+        _savedWaitForHuman = WaitForHuman;
+        OnPropertyChanged(nameof(IsWaitingForHuman));
     }
 
     /// <summary>
@@ -514,8 +521,19 @@ public sealed partial class BotsViewModel : ObservableObject, IScreen {
 
     private void UpdateBots(LiveSnapshot? snapshot) {
         _lastBots = snapshot == null ? [] : snapshot.Players.Where(player => player.IsBot).ToList();
+        int humans = snapshot == null ? 0 : snapshot.Players.Count(player => !player.IsBot);
+        if (humans != _humanCount) {
+            _humanCount = humans;
+            OnPropertyChanged(nameof(IsWaitingForHuman));
+        }
         RefreshActiveBots();
     }
+
+    /// <summary>
+    /// CS2 keeps every bot out of the teams while "wait for a human" is on and
+    /// nobody plays, added bots too; they then sit on the server unseen.
+    /// </summary>
+    public bool IsWaitingForHuman => _connection.IsRunning && _savedWaitForHuman && _humanCount == 0;
 
     private string SkillText(string botName) {
         if (_skills.TryGetValue(botName, out int skill)) {
@@ -536,8 +554,12 @@ public sealed partial class BotsViewModel : ObservableObject, IScreen {
     }
 
     private void OnConnectionChanged(object? sender, PropertyChangedEventArgs e) {
-        if (e.PropertyName == nameof(ServerConnection.IsRunning) && !_connection.IsRunning) {
+        if (e.PropertyName != nameof(ServerConnection.IsRunning)) {
+            return;
+        }
+        if (!_connection.IsRunning) {
             UpdateBots(null);
         }
+        OnPropertyChanged(nameof(IsWaitingForHuman));
     }
 }
