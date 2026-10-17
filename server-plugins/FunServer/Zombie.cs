@@ -1,6 +1,7 @@
 using System.Drawing;
 using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
+using CounterStrikeSharp.API.Modules.Entities.Constants;
 using CounterStrikeSharp.API.Modules.Timers;
 using CounterStrikeSharp.API.Modules.Utils;
 using Timer = CounterStrikeSharp.API.Modules.Timers.Timer;
@@ -36,6 +37,7 @@ public sealed partial class FunServerPlugin {
     private readonly HashSet<int> _zombies = [];
     private bool _isInfectionStarted;
     private bool _isLastHumanAnnounced;
+    private bool _isZombieWinCalled;
     private Timer? _countdown;
     private int _countdownLeft;
 
@@ -43,6 +45,11 @@ public sealed partial class FunServerPlugin {
 
     private void LoadZombie() {
         RegisterListener<Listeners.OnMapStart>(_ => ResetZombies());
+        // The last human leaving the server ends the round too.
+        RegisterListener<Listeners.OnClientDisconnect>(slot => {
+            _zombies.Remove(slot);
+            Server.NextFrame(EndRoundIfNoHumanLeft);
+        });
         RegisterEventHandler<EventRoundPrestart>(OnZombieRoundPrestart);
         RegisterEventHandler<EventRoundStart>(OnZombieRoundStart);
         RegisterEventHandler<EventRoundEnd>((_, _) => {
@@ -110,6 +117,25 @@ public sealed partial class FunServerPlugin {
         }
     }
 
+    /// <summary>
+    /// The game ends a round when a team is dead, but not when the human
+    /// side is empty (the last human left the server, or turned anyway), so
+    /// the zombies' win is called here.
+    /// </summary>
+    private void EndRoundIfNoHumanLeft() {
+        if (!IsZombieMode || !_isInfectionStarted || _isZombieWinCalled || AliveHumans().Any()) {
+            return;
+        }
+        CCSGameRules? rules = Utilities.FindAllEntitiesByDesignerName<CCSGameRulesProxy>("cs_gamerules").FirstOrDefault()?.GameRules;
+        // Non-zero once the round is decided: the game ended it itself when the last human died.
+        if (rules == null || rules.RoundWinStatus != 0) {
+            return;
+        }
+        // Only once per round; ResetZombies clears it at the round end.
+        _isZombieWinCalled = true;
+        rules.TerminateRound(5f, RoundEndReason.TerroristsWin);
+    }
+
     /// <summary>Once per round, when only one human is left: everybody hunts them now.</summary>
     private void AnnounceLastHuman() {
         List<CCSPlayerController> humans = AliveHumans().ToList();
@@ -149,8 +175,12 @@ public sealed partial class FunServerPlugin {
         }
 
         // A knife can kill a human in one hit; that still counts as an infection while other humans live.
+        // The victim still counts as alive during the event, so the last human has to be left out by slot:
+        // turning them too left the round with no human and no end.
         bool byZombie = death.Attacker != null && _zombies.Contains(death.Attacker.Slot);
-        if (byZombie && AliveHumans().Any()) {
+        bool isLastHuman = !AliveHumans().Any(human => human.Slot != victim.Slot);
+        Server.NextFrame(EndRoundIfNoHumanLeft);
+        if (byZombie && !isLastHuman) {
             Vector? where = victim.PlayerPawn.Value?.AbsOrigin;
             Vector? spot = where == null ? null : new Vector(where.X, where.Y, where.Z);
             _zombies.Add(victim.Slot);
@@ -265,6 +295,7 @@ public sealed partial class FunServerPlugin {
         bool hadInfection = _isInfectionStarted;
         _isInfectionStarted = false;
         _isLastHumanAnnounced = false;
+        _isZombieWinCalled = false;
         if (hadInfection) {
             // The red and blue glows belong to the infection.
             RemoveAllGlows();
