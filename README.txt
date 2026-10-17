@@ -26,7 +26,7 @@ Steam Workshop need Steam online).
 GETTING STARTED
 ---------------
 
-1. Unpack the folder to a permanent location, e.g. C:\Games\CS2-FunServer.
+1. Unpack the folder to a permanent location, e.g. D:\Games\CS2-FunServer.
 
 2. Start CS2_SERVER_CONTROL.exe. Before the first install it opens on the
    Install screen. Press "Install or repair". It downloads and sets up:

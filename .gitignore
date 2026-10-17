@@ -19,3 +19,5 @@ CS2_SERVER_CONTROL.exe
 release/
 tools/previews/
 /plugins/
+server-plugins/*/obj/
+server-plugins/*/bin/
