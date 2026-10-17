@@ -17,15 +17,55 @@ namespace FunServer;
 public sealed partial class FunServerPlugin {
     private const string DefaultMode = "classic";
 
+    /// <summary>The mode of the running map, read once at map start; the fun parts ask this.</summary>
+    private string _activeMode = DefaultMode;
+
     private void LoadModeConfigs() {
         RegisterListener<Listeners.OnMapStart>(_ => {
+            _activeMode = ReadActiveMode();
             // One frame later, so Valve's own gamemode configs have run.
-            Server.NextFrame(RunModeConfigs);
+            Server.NextFrame(() => {
+                RunModeConfigs();
+                SetNextMapFromCycle();
+            });
         });
+        _activeMode = ReadActiveMode();
     }
 
+    /// <summary>
+    /// CS2 knows nothing of our map lists (cfg\fun\mapcycle_&lt;mode&gt;.txt):
+    /// at the end of a match it loads nextlevel. So every map start points
+    /// nextlevel at the map after this one in the mode's list. The window's
+    /// "Next" button overrides it with nextlevel as well.
+    /// </summary>
+    private void SetNextMapFromCycle() {
+        List<string> maps = InstalledMapsOf(_activeMode);
+        if (maps.Count == 0) {
+            return;
+        }
+        int current = maps.FindIndex(map => map.Equals(Server.MapName, StringComparison.OrdinalIgnoreCase));
+        // A map that is not in the list (a Workshop map, a pick) goes on with the first map of the list.
+        string next = maps[(current + 1) % maps.Count];
+        Server.ExecuteCommand($"nextlevel {next}");
+    }
+
+    /// <summary>The maps of a mode's list that are installed, in the list's order.</summary>
+    private static List<string> InstalledMapsOf(string modeId) {
+        string cycleFile = Path.Combine(ConfigDirectory, "fun", $"mapcycle_{modeId}.txt");
+        if (!File.Exists(cycleFile)) {
+            return [];
+        }
+        string mapsDir = Path.Combine(Server.GameDirectory, "csgo", "maps");
+        return File.ReadAllLines(cycleFile)
+            .Select(line => line.Trim())
+            .Where(line => line.Length > 0 && !line.StartsWith("//", StringComparison.Ordinal))
+            .Where(map => File.Exists(Path.Combine(mapsDir, map + ".vpk")))
+            .ToList();
+    }
+
+    /// <summary>Also after a fun round: running the configs again puts every rule back.</summary>
     private void RunModeConfigs() {
-        string mode = ReadActiveMode();
+        string mode = _activeMode;
         foreach (string config in ConfigsFor(mode)) {
             if (File.Exists(Path.Combine(ConfigDirectory, config))) {
                 Server.ExecuteCommand($"exec {config}");

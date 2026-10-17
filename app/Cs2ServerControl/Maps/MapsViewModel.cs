@@ -22,10 +22,15 @@ public sealed partial class MapLibraryRowViewModel : ObservableObject {
     public MapLibraryEntry Entry { get; }
     public string Name => Entry.Name;
     public bool HasPicture => Thumbnail != null;
-    public bool IsInNoMode => Entry.ModeIds.Count == 0;
+    public bool IsWorkshop => Entry.WorkshopId != null;
+    // Workshop maps are in no list on purpose: they are played by pick in any mode.
+    public bool IsInNoMode => Entry.ModeIds.Count == 0 && !IsWorkshop;
 
     public string ModesText {
         get {
+            if (IsWorkshop) {
+                return "Workshop, any mode by pick";
+            }
             if (Entry.ModeIds.Count == 0) {
                 return "In no map list";
             }
@@ -37,7 +42,9 @@ public sealed partial class MapLibraryRowViewModel : ObservableObject {
 
     /// <summary>The first mode with a tile on the Server screen, where Pick takes the map.</summary>
     public string? PickModeId => Entry.ModeIds.FirstOrDefault(modeId => GameModes.All.Any(mode => mode.Id == modeId));
-    public bool CanPick => PickModeId != null;
+    public bool CanPick => PickModeId != null || IsWorkshop;
+    // nextlevel only knows the maps in the server's maps folder.
+    public bool CanSetNext => !IsWorkshop;
 }
 
 /// <summary>What the Show list narrows the table to.</summary>
@@ -45,8 +52,8 @@ public sealed record MapFilter(string Title, Func<MapLibraryRowViewModel, bool> 
 
 /// <summary>
 /// The Maps screen: every installed map in one table, with the modes that
-/// play it and its picture. Pick goes to the Server draft, Next to the
-/// running server.
+/// play it and its picture, and the Workshop tab with the host's Workshop
+/// maps. Pick goes to the Server draft, Next to the running server.
 /// </summary>
 public sealed partial class MapsViewModel : ObservableObject, IScreen {
     private readonly ServerConnection _connection;
@@ -54,6 +61,10 @@ public sealed partial class MapsViewModel : ObservableObject, IScreen {
     private readonly MapThumbnails _thumbnails;
     private readonly Func<string, string, bool> _pickOnServer;
     private List<MapLibraryRowViewModel> _allRows = [];
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsInstalledTab))]
+    private bool _isWorkshopTab;
 
     [ObservableProperty]
     private MapFilter _selectedFilter;
@@ -69,15 +80,24 @@ public sealed partial class MapsViewModel : ObservableObject, IScreen {
         _dialogs = dialogs;
         _pickOnServer = pickOnServer;
         _thumbnails = new MapThumbnails(connection.Paths);
+        Workshop = new WorkshopViewModel(connection, dialogs, pickOnServer);
 
         List<MapFilter> filters = [new("All maps", _ => true)];
         foreach (GameMode mode in GameModes.All) {
             filters.Add(new MapFilter(mode.Title, row => row.Entry.ModeIds.Contains(mode.Id)));
         }
+        filters.Add(new MapFilter("Workshop", row => row.IsWorkshop));
         filters.Add(new MapFilter("Missing picture", row => !row.HasPicture));
         filters.Add(new MapFilter("In no map list", row => row.IsInNoMode));
         Filters = filters;
         _selectedFilter = filters[0];
+    }
+
+    public WorkshopViewModel Workshop { get; }
+
+    public bool IsInstalledTab {
+        get => !IsWorkshopTab;
+        set => IsWorkshopTab = !value;
     }
 
     public IReadOnlyList<MapFilter> Filters { get; }
@@ -89,6 +109,7 @@ public sealed partial class MapsViewModel : ObservableObject, IScreen {
 
     public void OnShown() {
         _ = RefreshAsync();
+        Workshop.Refresh();
     }
 
     public void OnHidden() {
@@ -107,11 +128,20 @@ public sealed partial class MapsViewModel : ObservableObject, IScreen {
         PackagePaths paths = _connection.Paths;
         IReadOnlyList<MapLibraryEntry> entries = await Task.Run(() => MapLibrary.Scan(paths));
 
-        _allRows = entries.Select(entry => new MapLibraryRowViewModel(entry, _thumbnails.Get(entry.Name))).ToList();
+        _allRows = entries.Select(entry => new MapLibraryRowViewModel(entry, PictureOf(entry))).ToList();
         int withoutPicture = _allRows.Count(row => !row.HasPicture);
         int inNoList = _allRows.Count(row => row.IsInNoMode);
         Summary = $"{_allRows.Count} maps · {inNoList} in no map list · {withoutPicture} without picture";
         ApplyFilter();
+    }
+
+    /// <summary>A Workshop map has the picture from its Workshop page, saved under its item id.</summary>
+    private ImageSource? PictureOf(MapLibraryEntry entry) {
+        ImageSource? picture = _thumbnails.Get(entry.Name);
+        if (picture == null && entry.WorkshopId != null) {
+            picture = _thumbnails.Get(entry.WorkshopId);
+        }
+        return picture;
     }
 
     [RelayCommand]
@@ -130,8 +160,15 @@ public sealed partial class MapsViewModel : ObservableObject, IScreen {
 
     [RelayCommand]
     private void PickOnServer(MapLibraryRowViewModel? row) {
-        string? modeId = row?.PickModeId;
-        if (row == null || modeId == null) {
+        if (row == null) {
+            return;
+        }
+        string? modeId = row.PickModeId;
+        if (modeId == null && row.IsWorkshop) {
+            // A Workshop map is in no mode list; it goes into the mode the server runs.
+            modeId = _connection.ActiveModeId ?? GameModes.All[0].Id;
+        }
+        if (modeId == null) {
             return;
         }
         _pickOnServer(modeId, row.Name);
@@ -139,7 +176,7 @@ public sealed partial class MapsViewModel : ObservableObject, IScreen {
 
     [RelayCommand]
     private async Task SetNextMap(MapLibraryRowViewModel? row) {
-        if (row == null || !_connection.IsRunning) {
+        if (row == null || !row.CanSetNext || !_connection.IsRunning) {
             return;
         }
         await _connection.RunAsync($"nextlevel {row.Name}");

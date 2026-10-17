@@ -47,30 +47,8 @@ public class ServerQueryTests {
     }
 
     [Fact]
-    public void ReadsRules() {
-        byte[] packet = Packet('E', (short)2, "amx_nextmap", "aim_awp", "amx_timeleft", "12:35");
-
-        IReadOnlyDictionary<string, string>? rules = QueryParser.ParseRules(packet);
-
-        Assert.NotNull(rules);
-        Assert.Equal("aim_awp", rules["amx_nextmap"]);
-        Assert.Equal("12:35", rules["AMX_TIMELEFT"]);
-    }
-
-    [Fact]
-    public void ReadsGoldSrcSplitPacketHeader() {
-        byte[] part = [0xFE, 0xFF, 0xFF, 0xFF, 9, 0, 0, 0, (1 << 4) | 2, 0xAB, 0xCD];
-
-        Assert.True(QueryParser.TryReadSplitPart(part, out int index, out int total, out byte[] payload));
-        Assert.Equal(1, index);
-        Assert.Equal(2, total);
-        Assert.Equal([0xAB, 0xCD], payload);
-    }
-
-    [Fact]
     public void RejectsForeignPackets() {
         Assert.Null(QueryParser.ParseInfo(Encoding.ASCII.GetBytes("hello world")));
-        Assert.Null(QueryParser.ParseRules(Packet('I', "x")));
-        Assert.False(QueryParser.TryReadSplitPart([0xFF, 0xFF, 0xFF, 0xFF, (byte)'E'], out _, out _, out _));
+        Assert.Null(QueryParser.ParseInfo(Packet('E', (short)1, "a", "b")));
     }
 }

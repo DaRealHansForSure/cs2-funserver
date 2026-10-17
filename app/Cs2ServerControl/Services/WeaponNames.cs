@@ -23,6 +23,11 @@ public static class WeaponNames {
     }
 
     public static bool IsKnife(string? internalName) {
-        return string.Equals(internalName, "knife", StringComparison.OrdinalIgnoreCase);
+        if (string.IsNullOrEmpty(internalName)) {
+            return false;
+        }
+        // CS2: knife, knife_t, knife_karambit ... and the bayonets.
+        return internalName.StartsWith("knife", StringComparison.OrdinalIgnoreCase)
+            || internalName.Contains("bayonet", StringComparison.OrdinalIgnoreCase);
     }
 }

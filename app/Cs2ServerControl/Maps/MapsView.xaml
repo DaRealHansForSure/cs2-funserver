@@ -35,6 +35,14 @@
             </StackPanel>
             <StackPanel Orientation="Horizontal">
                 <TextBlock Text="Maps" Style="{StaticResource PageTitleText}" />
+                <Border Background="{StaticResource InputBackground}" Padding="4" Margin="16,0,0,0" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal">
+                        <RadioButton Content="Installed" Style="{StaticResource SegmentButton}" GroupName="MapsTab" Height="{StaticResource SmallButtonHeight}"
+                                     Width="120" Margin="0,0,4,0" IsChecked="{Binding IsInstalledTab, Mode=TwoWay}" />
+                        <RadioButton Content="Workshop" Style="{StaticResource SegmentButton}" GroupName="MapsTab" Height="{StaticResource SmallButtonHeight}"
+                                     Width="120" IsChecked="{Binding IsWorkshopTab, Mode=TwoWay}" />
+                    </StackPanel>
+                </Border>
                 <TextBlock Text="{Binding Summary}" FontSize="{StaticResource FontSizeToolbar}" Foreground="{StaticResource TextTertiary}"
                            VerticalAlignment="Center" Margin="16,0,0,0" />
             </StackPanel>
@@ -48,7 +56,7 @@
             </Grid.ColumnDefinitions>
 
             <!-- Installed maps -->
-            <Border Grid.Column="0" Style="{StaticResource Card}">
+            <Border Grid.Column="0" Style="{StaticResource Card}" Visibility="{Binding IsInstalledTab, Converter={StaticResource VisibleWhenTrue}}">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -123,7 +131,7 @@
                                                             Command="{Binding DataContext.PickOnServerCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                             CommandParameter="{Binding}" ToolTip="Pick this map on the Server screen (a draft until Apply)"
                                                             AutomationProperties.Name="{Binding Name, StringFormat=Pick {0} on the Server screen}" />
-                                                    <Button Content="Next" Style="{StaticResource RowButton}"
+                                                    <Button x:Name="NextButton" Content="Next" Style="{StaticResource RowButton}"
                                                             IsEnabled="{Binding DataContext.IsServerRunning, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                             Command="{Binding DataContext.SetNextMapCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                             CommandParameter="{Binding}" ToolTip="Right away: this map comes after the current one"
@@ -135,7 +143,97 @@
                                             <DataTrigger Binding="{Binding IsInNoMode}" Value="True">
                                                 <Setter TargetName="Modes" Property="Foreground" Value="{StaticResource TextTertiary}" />
                                             </DataTrigger>
+                                            <!-- nextlevel only knows the maps in the server's maps folder. -->
+                                            <DataTrigger Binding="{Binding CanSetNext}" Value="False">
+                                                <Setter TargetName="NextButton" Property="IsEnabled" Value="False" />
+                                            </DataTrigger>
                                         </DataTemplate.Triggers>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+
+            <!-- Workshop: the host's Workshop maps, added by link -->
+            <Border Grid.Column="0" Style="{StaticResource Card}" DataContext="{Binding Workshop}"
+                    Visibility="{Binding DataContext.IsWorkshopTab, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource VisibleWhenTrue}}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <DockPanel Grid.Row="0" Margin="0,0,0,8">
+                        <Button DockPanel.Dock="Right" Content="Browse the Workshop" Style="{StaticResource SecondaryButton}" Command="{Binding BrowseCommand}"
+                                ToolTip="Opens Steam's Workshop for CS2 maps in the browser; copy the address of a map you like" />
+                        <TextBlock Text="Workshop maps" Style="{StaticResource CardTitleText}" VerticalAlignment="Center" />
+                    </DockPanel>
+                    <Grid Grid.Row="1" Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="8" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox Grid.Column="0" Style="{StaticResource TextInput}" Tag="Workshop link or item number"
+                                 Text="{Binding LinkText, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Workshop link" />
+                        <Button Grid.Column="2" Content="Add" Style="{StaticResource PrimaryButton}" Command="{Binding AddCommand}" />
+                    </Grid>
+                    <TextBlock Grid.Row="2" Text="{Binding Message}" TextWrapping="Wrap" Margin="0,0,0,10">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock" BasedOn="{StaticResource HintText}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsMessageAProblem}" Value="True">
+                                        <Setter Property="Foreground" Value="{StaticResource Warning}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+
+                    <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto" Focusable="False">
+                        <StackPanel>
+                            <TextBlock Text="No Workshop maps yet. Browse the Workshop, copy the address of a map page and add it here." Style="{StaticResource HintText}"
+                                       TextWrapping="Wrap" Visibility="{Binding Rows.Count, Converter={StaticResource VisibleWhenZero}}" />
+                            <ItemsControl ItemsSource="{Binding Rows}" Focusable="False">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border BorderBrush="{StaticResource ConsoleBorder}" BorderThickness="{StaticResource BorderBottomOne}" Padding="0,6,0,6">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="112" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <Border Grid.Column="0" Width="100" Height="56" HorizontalAlignment="Left" Background="{StaticResource InputBackground}"
+                                                        BorderBrush="{StaticResource CardBorder}" BorderThickness="{StaticResource BorderOne}">
+                                                    <Image Source="{Binding Thumbnail}" Stretch="UniformToFill" RenderOptions.BitmapScalingMode="HighQuality" />
+                                                </Border>
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,8,0">
+                                                    <TextBlock Text="{Binding Title}" Foreground="{StaticResource TextPrimary}" FontSize="{StaticResource FontSizeToolbar}"
+                                                               TextTrimming="CharacterEllipsis" ToolTip="{Binding Title}" />
+                                                    <TextBlock Style="{StaticResource HintText}" Margin="0,2,0,0">
+                                                        <Run Text="{Binding SizeText, Mode=OneWay}" /> · <Run Text="{Binding StateText, Mode=OneWay}" />
+                                                    </TextBlock>
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <Button Content="Pick" Style="{StaticResource RowButton}"
+                                                            Command="{Binding DataContext.PickCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                            CommandParameter="{Binding}" ToolTip="Pick this map on the Server screen (a draft until Apply)"
+                                                            AutomationProperties.Name="{Binding Title, StringFormat=Pick {0} on the Server screen}" />
+                                                    <Button Content="Page" Style="{StaticResource RowButton}"
+                                                            Command="{Binding DataContext.OpenPageCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                            CommandParameter="{Binding}" ToolTip="Opens the map's Workshop page in the browser"
+                                                            AutomationProperties.Name="{Binding Title, StringFormat=Workshop page of {0}}" />
+                                                    <Button Content="Remove" Style="{StaticResource RowButton}"
+                                                            Command="{Binding DataContext.RemoveCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                            CommandParameter="{Binding}" AutomationProperties.Name="{Binding Title, StringFormat=Remove {0}}" />
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
@@ -159,7 +257,7 @@
                         <StackPanel>
                             <TextBlock Text="More maps" Style="{StaticResource CardTitleText}" Margin="0,0,0,8" />
                             <TextBlock Style="{StaticResource HintText}" TextWrapping="Wrap"
-                                       Text="The CS2 server comes with Valve's maps. Maps from the Steam Workshop follow in a later version; the players' CS2 downloads them by itself." />
+                                       Text="The CS2 server comes with Valve's maps. More come from the Steam Workshop (Workshop tab): the server downloads a map when it starts it, the players' CS2 downloads it by itself when they join. Workshop maps are played by pick in any mode, not in the rotation." />
                         </StackPanel>
                     </Border>
 

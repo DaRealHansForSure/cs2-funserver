@@ -1,3 +1,4 @@
+using System.IO;
 using Cs2ServerControl.Services;
 using Xunit;
 
@@ -65,13 +66,15 @@ public class BotProfileReaderTests {
     }
 
     [Fact]
-    public void ReadsTheRealFileWhenInstalled() {
-        string? file = TestPaths.FindServerFile("cstrike", "BotProfile.db");
-        if (file == null) {
+    public void ReadsTheProfileFromTheGamePackageWhenInstalled() {
+        string? package = TestPaths.FindServerFile("game", "csgo", "pak01_dir.vpk");
+        if (package == null) {
             return;
         }
 
-        IReadOnlyDictionary<string, int> skills = BotProfileReader.ReadSkills(file);
+        string root = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(package)!, "..", "..", ".."));
+
+        IReadOnlyDictionary<string, int> skills = BotProfileReader.ReadSkills(new PackagePaths(root));
 
         Assert.True(skills.Count > 20);
         Assert.All(skills.Values, skill => Assert.InRange(skill, 0, 100));

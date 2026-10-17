@@ -21,3 +21,4 @@ tools/previews/
 /plugins/
 server-plugins/*/obj/
 server-plugins/*/bin/
+tools/workshop.json

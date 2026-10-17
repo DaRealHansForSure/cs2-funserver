@@ -46,9 +46,8 @@ public sealed class PackagePaths {
         return Path.Combine(FunConfigDir, "modes", modeId + ".cfg");
     }
 
-    public string GameLogsDir => Path.Combine(GameDir, "logs");
+    // CounterStrikeSharp's logs and the FunServer plugin's fun-yyyyMMdd.log for the Stats screen.
     public string PluginLogsDir => Path.Combine(AddonsDir, "counterstrikesharp", "logs");
-    public string BotProfileFile => Path.Combine(GameDir, "botprofile.db");
     public string ServerBaseConfigFile => Path.Combine(FunConfigDir, "modes", "base.cfg");
     public string SourceBaseConfigFile => Path.Combine(RootDir, "server-files", "csgo", "cfg", "fun", "modes", "base.cfg");
 
@@ -61,6 +60,27 @@ public sealed class PackagePaths {
     /// <summary>A Valve map: game\csgo\maps\&lt;name&gt;.vpk. Workshop maps live in the Steam workshop folder instead.</summary>
     public string MapFile(string mapName) {
         return Path.Combine(MapsDir, mapName + ".vpk");
+    }
+
+    /// <summary>
+    /// Where the server keeps the Workshop maps it downloaded for
+    /// host_workshop_map: one folder per item id with &lt;id&gt;_dir.vpk inside.
+    /// </summary>
+    public string WorkshopContentDir => Path.Combine(ServerDir, "game", "bin", "win64", "steamapps", "workshop", "content", "730");
+
+    /// <summary>The host's Workshop maps, added on the Maps screen; not part of the package.</summary>
+    public string WorkshopListFile => Path.Combine(ToolsDir, "workshop.json");
+
+    /// <summary>
+    /// The package file that holds a map: Valve's own map file, else the
+    /// downloaded Workshop item that carries it. Null when neither exists.
+    /// </summary>
+    public string? FindMapPackage(string mapName) {
+        string mapFile = MapFile(mapName);
+        if (File.Exists(mapFile)) {
+            return mapFile;
+        }
+        return WorkshopLibrary.FindDownload(this, mapName)?.PackageFile;
     }
 
     // Radar images; Valve's are packed into the game's .vpk files, loose ones only for own maps.

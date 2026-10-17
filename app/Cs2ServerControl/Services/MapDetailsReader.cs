@@ -1,6 +1,5 @@
 using System.Globalization;
 using System.IO;
-using System.Text.RegularExpressions;
 
 namespace Cs2ServerControl.Services;
 
@@ -11,7 +10,7 @@ public sealed record MapStat(string Label, string Value);
 /// its size from the geometry, and how it was played according to the
 /// server's game logs (one log file per map start).
 /// </summary>
-public static partial class MapDetailsReader {
+public static class MapDetailsReader {
     private const int MaxLogFiles = 500;
     private const double MetersPerUnit = 0.0254;
 
@@ -21,11 +20,13 @@ public static partial class MapDetailsReader {
 
     private static IReadOnlyList<MapStat> Read(PackagePaths paths, string mapName, MapWireframe? wireframe) {
         var stats = new List<MapStat>();
-        string mapFile = paths.MapFile(mapName);
-
         stats.Add(new MapStat("Modes", ModesOf(paths, mapName)));
 
-        if (File.Exists(mapFile)) {
+        string mapFile = paths.MapFile(mapName);
+        WorkshopDownload? workshop = File.Exists(mapFile) ? null : WorkshopLibrary.FindDownload(paths, mapName);
+        if (workshop != null) {
+            stats.Add(new MapStat("Workshop", $"Item {workshop.Id}, {workshop.SizeBytes / 1024.0 / 1024.0:0.0} MB"));
+        } else if (File.Exists(mapFile)) {
             stats.Add(new MapStat("File", $"{new FileInfo(mapFile).Length / 1024.0 / 1024.0:0.0} MB"));
         }
 
@@ -49,49 +50,32 @@ public static partial class MapDetailsReader {
         return modes.Count == 0 ? "-" : string.Join(", ", modes);
     }
 
+    /// <summary>
+    /// How often the map ran and its kills, from the FunServer plugin's daily
+    /// logs: every line after a map change to this map, up to the next one.
+    /// </summary>
     private static void AddPlayStats(PackagePaths paths, string mapName, List<MapStat> stats) {
-        string logsDir = paths.GameLogsDir;
-        if (!Directory.Exists(logsDir)) {
+        List<FileInfo> logs = new StatsReader(paths).FunLogs(DateTime.MinValue);
+        if (logs.Count == 0) {
             stats.Add(new MapStat("Played", "No game logs yet"));
             return;
         }
 
         int timesPlayed = 0;
         DateTime? lastPlayed = null;
-        int kills = 0;
-        int knifeKills = 0;
-        var weapons = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-        var killers = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-
-        IEnumerable<FileInfo> logFiles = new DirectoryInfo(logsDir).EnumerateFiles("L*.log")
-            .OrderByDescending(file => file.LastWriteTimeUtc)
-            .Take(MaxLogFiles);
-        foreach (FileInfo logFile in logFiles) {
-            try {
-                if (!IsLogOfMap(logFile.FullName, mapName)) {
-                    continue;
+        bool isOnMap = false;
+        var killLines = new List<string>();
+        foreach (string line in logs.TakeLast(MaxLogFiles).SelectMany(StatsReader.ReadLinesShared)) {
+            if (StatsReader.TryReadMapChange(line, out string map, out DateTime startedAt)) {
+                isOnMap = string.Equals(map, mapName, StringComparison.OrdinalIgnoreCase);
+                if (isOnMap) {
+                    timesPlayed++;
+                    lastPlayed = startedAt;
                 }
-                timesPlayed++;
-                if (lastPlayed == null || logFile.LastWriteTime > lastPlayed) {
-                    lastPlayed = logFile.LastWriteTime;
-                }
-
-                foreach (string line in File.ReadLines(logFile.FullName)) {
-                    Match kill = KillPattern().Match(line);
-                    if (!kill.Success) {
-                        continue;
-                    }
-                    kills++;
-                    string weapon = kill.Groups["weapon"].Value;
-                    weapons[weapon] = (weapons.TryGetValue(weapon, out int weaponCount) ? weaponCount : 0) + 1;
-                    string killer = kill.Groups["killer"].Value;
-                    killers[killer] = (killers.TryGetValue(killer, out int killerCount) ? killerCount : 0) + 1;
-                    if (WeaponNames.IsKnife(weapon)) {
-                        knifeKills++;
-                    }
-                }
-            } catch (IOException) {
-                // The running server holds today's log open; skip it this time.
+                continue;
+            }
+            if (isOnMap) {
+                killLines.Add(line);
             }
         }
 
@@ -100,34 +84,15 @@ public static partial class MapDetailsReader {
             return;
         }
 
+        IReadOnlyList<PlayerStats> players = StatsReader.BuildLeaderboard(killLines, since: null);
+        int kills = players.Sum(player => player.Kills);
+        int knifeKills = players.Sum(player => player.KnifeKills);
         string times = timesPlayed == 1 ? "once" : $"{timesPlayed} times";
         stats.Add(new MapStat("Played", $"{times}, last on {lastPlayed:dd.MM.yyyy HH:mm}"));
         stats.Add(new MapStat("Kills", $"{kills} ({knifeKills} with the knife)"));
-        if (weapons.Count > 0) {
-            KeyValuePair<string, int> topWeapon = weapons.MaxBy(pair => pair.Value);
-            stats.Add(new MapStat("Top weapon", $"{WeaponNames.Display(topWeapon.Key)} ({topWeapon.Value} kills)"));
-        }
-        if (killers.Count > 0) {
-            KeyValuePair<string, int> topKiller = killers.MaxBy(pair => pair.Value);
-            stats.Add(new MapStat("Best player", $"{topKiller.Key} ({topKiller.Value} kills)"));
+        PlayerStats? best = players.FirstOrDefault(player => player.Kills > 0);
+        if (best != null) {
+            stats.Add(new MapStat("Best player", $"{best.Name} ({best.Kills} kills, mostly {WeaponNames.Display(best.FavoriteWeapon)})"));
         }
     }
-
-    private static bool IsLogOfMap(string logFile, string mapName) {
-        // The map is named in the first lines of every log file.
-        foreach (string line in File.ReadLines(logFile).Take(4)) {
-            Match match = LoadingMapPattern().Match(line);
-            if (match.Success) {
-                return string.Equals(match.Groups["map"].Value, mapName, StringComparison.OrdinalIgnoreCase);
-            }
-        }
-        return false;
-    }
-
-    [GeneratedRegex("Loading map \"(?<map>[^\"]+)\"")]
-    private static partial Regex LoadingMapPattern();
-
-    // "Tom<4><STEAM_ID_LAN><CT>" killed "Mike<5><STEAM_ID_LAN><TERRORIST>" with "awp"
-    [GeneratedRegex("\"(?<killer>[^\"<]+)<\\d+><[^>]*><[^>]*>\" killed \"[^\"]+\" with \"(?<weapon>[^\"]+)\"")]
-    private static partial Regex KillPattern();
 }

@@ -730,17 +730,21 @@ public sealed partial class LiveMapViewModel : ObservableObject, IScreen {
 
         MapName = mapName;
         UpdateTitle();
-        string mapFile = _connection.Paths.MapFile(mapName);
-        if (!File.Exists(mapFile)) {
+        int version = ++_mapLoadVersion;
+        // A Workshop map is looked up in the downloaded items, which reads their packages.
+        string? packageFile = await Task.Run(() => _connection.Paths.FindMapPackage(mapName));
+        if (version != _mapLoadVersion) {
+            return;
+        }
+        if (packageFile == null) {
             Wireframe = null;
             ViewportMessage = $"{mapName} is not installed";
             return;
         }
 
-        int version = ++_mapLoadVersion;
         ViewportMessage = "Loading map...";
         try {
-            MapWireframe wireframe = await Cs2MapLoader.LoadAsync(mapFile);
+            MapWireframe wireframe = await Cs2MapLoader.LoadAsync(packageFile, mapName);
             if (version != _mapLoadVersion) {
                 return;
             }

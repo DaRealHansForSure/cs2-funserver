@@ -7,6 +7,7 @@ using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Cvars;
 using CounterStrikeSharp.API.Modules.Timers;
+using CounterStrikeSharp.API.Modules.Utils;
 
 namespace FunServer;
 
@@ -14,7 +15,9 @@ namespace FunServer;
 /// Streams the game to the Server Control window over UDP on this PC, in the
 /// same text format as the CS 1.6 plugin fun_livemap, so the window's parser
 /// stays the same:
-///   CSLIVE1|S|map|mode|roundSecondsLeft|maxPlayers, then one P line per player
+///   CSLIVE1|S|map|mode|roundSecondsLeft|maxPlayers|mapSecondsLeft|nextMap,
+///     then one P line per player (the last two fields are new in CS2; the P
+///     line ends with the 64 bit SteamID, 0 for bots, for the admin list)
 ///   CSLIVE1|K|killerUserid|victimUserid|weapon|headshot
 ///   CSLIVE1|T, then one line per bullet: shooter|sx|sy|sz|ex|ey|ez|hitPlayer
 /// The feed only goes to 127.0.0.1; the window opens no firewall port for it.
@@ -57,7 +60,7 @@ public sealed partial class FunServerPlugin {
         SendShots();
 
         var packet = new StringBuilder();
-        packet.Append(CultureInfo.InvariantCulture, $"{PacketPrefix}|S|{Server.MapName}|{ReadActiveMode()}|{RoundSecondsLeft()}|{Server.MaxPlayers}");
+        packet.Append(CultureInfo.InvariantCulture, $"{PacketPrefix}|S|{Server.MapName}|{_activeMode}|{RoundSecondsLeft()}|{Server.MaxPlayers}|{MapSecondsLeft()}|{NextMapName()}");
         foreach (CCSPlayerController player in Utilities.GetPlayers()) {
             if (!player.IsValid || player.IsHLTV) {
                 continue;
@@ -67,7 +70,7 @@ public sealed partial class FunServerPlugin {
         Send(packet.ToString());
     }
 
-    private static void AppendPlayerLine(StringBuilder packet, CCSPlayerController player) {
+    private void AppendPlayerLine(StringBuilder packet, CCSPlayerController player) {
         CCSPlayerPawn? pawn = player.PlayerPawn.Value;
         bool isAlive = player.PawnIsAlive && pawn != null;
         var origin = pawn?.AbsOrigin;
@@ -78,19 +81,32 @@ public sealed partial class FunServerPlugin {
 
         // The separators must never show up inside a field.
         string name = player.PlayerName.Replace('|', '/').Replace('\n', '/').Replace('\r', '/');
-        // No hook yet: hooking 0, hook point 0 0 0.
         string line = string.Create(CultureInfo.InvariantCulture,
-            $"\nP|{player.UserId ?? 0}|{name}|{TeamName(player.TeamNum)}|{(isAlive ? 1 : 0)}|{(player.IsBot ? 1 : 0)}|{health}|{Round(origin?.X)}|{Round(origin?.Y)}|{Round(origin?.Z)}|{Round(yaw)}|{stats?.Kills ?? 0}|{stats?.Deaths ?? 0}|{weapon}|0|0|0|0|{GlowField(isAlive ? pawn : null)}");
+            $"\nP|{player.UserId ?? 0}|{name}|{TeamName(player.TeamNum)}|{(isAlive ? 1 : 0)}|{(player.IsBot ? 1 : 0)}|{health}|{Round(origin?.X)}|{Round(origin?.Y)}|{Round(origin?.Z)}|{Round(yaw)}|{stats?.Kills ?? 0}|{stats?.Deaths ?? 0}|{weapon}|{HookField(player)}|{GlowField(player, isAlive ? pawn : null)}|{(player.IsBot ? 0 : player.SteamID)}");
         packet.Append(line);
     }
 
+    /// <summary>Hooking 1 and the point the rope holds, or 0 0 0 0.</summary>
+    private string HookField(CCSPlayerController player) {
+        Vector? point = HookPointOf(player);
+        if (point == null) {
+            return "0|0|0|0";
+        }
+        return string.Create(CultureInfo.InvariantCulture, $"1|{Round(point.X)}|{Round(point.Y)}|{Round(point.Z)}");
+    }
+
     /// <summary>
-    /// The tint fun_glow set, read back from the pawn, so the Live Map shows
-    /// what the players really see. White is the untinted default: -1 -1 -1.
+    /// The outline glow of the player, else a color tint read back from the
+    /// pawn (Juggernaut, ghosts), so the Live Map shows what the players see.
+    /// White is the untinted default: -1 -1 -1.
     /// </summary>
-    private static string GlowField(CCSPlayerPawn? pawn) {
+    private string GlowField(CCSPlayerController player, CCSPlayerPawn? pawn) {
         if (pawn == null) {
             return "-1|-1|-1";
+        }
+        Color? glow = GlowColorOf(player);
+        if (glow != null) {
+            return string.Create(CultureInfo.InvariantCulture, $"{glow.Value.R}|{glow.Value.G}|{glow.Value.B}");
         }
         Color render = pawn.Render;
         bool isUntinted = render.R == 255 && render.G == 255 && render.B == 255;
@@ -142,6 +158,27 @@ public sealed partial class FunServerPlugin {
         float roundSeconds = (ConVar.Find("mp_roundtime")?.GetPrimitiveValue<float>() ?? 0) * 60f;
         int left = (int)MathF.Ceiling(roundSeconds - (Server.CurrentTime - _roundStartedAt));
         return Math.Max(left, 0);
+    }
+
+    /// <summary>
+    /// What is left of mp_timelimit since the match started (after warmup);
+    /// -1 without a time limit or before the match runs. CS2 answers no
+    /// server rules query, so this and the next map go through the feed.
+    /// </summary>
+    private static int MapSecondsLeft() {
+        float limitMinutes = ConVar.Find("mp_timelimit")?.GetPrimitiveValue<float>() ?? 0;
+        CCSGameRules? rules = Utilities.FindAllEntitiesByDesignerName<CCSGameRulesProxy>("cs_gamerules").FirstOrDefault()?.GameRules;
+        if (limitMinutes <= 0 || rules == null || rules.WarmupPeriod) {
+            return -1;
+        }
+        int left = (int)MathF.Ceiling(limitMinutes * 60f - (Server.CurrentTime - rules.GameStartTime));
+        return Math.Max(left, 0);
+    }
+
+    private static string NextMapName() {
+        string next = ConVar.Find("nextlevel")?.StringValue ?? "";
+        // The separators must never show up inside a field.
+        return next.Replace('|', '/').Replace('\n', '/');
     }
 
     private void Send(string text) {

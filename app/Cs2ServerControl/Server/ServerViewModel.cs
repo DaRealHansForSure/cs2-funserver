@@ -47,13 +47,19 @@ public sealed partial class MapRowViewModel : ObservableObject {
     [ObservableProperty]
     private bool _isCurrent;
 
-    public MapRowViewModel(string name, ImageSource? thumbnail, Action<MapRowViewModel> onPicked) {
+    public MapRowViewModel(string name, ImageSource? thumbnail, Action<MapRowViewModel> onPicked, string? workshopId = null) {
         Name = name;
         _thumbnail = thumbnail;
         _onPicked = onPicked;
+        WorkshopId = workshopId;
     }
 
+    /// <summary>The map name the game reports; for a Workshop map not downloaded yet its Workshop title.</summary>
     public string Name { get; }
+
+    /// <summary>Set for a Workshop map: the server loads it with host_workshop_map.</summary>
+    public string? WorkshopId { get; }
+    public bool IsWorkshop => WorkshopId != null;
     [ObservableProperty]
     private ImageSource? _thumbnail;
 
@@ -187,7 +193,7 @@ public sealed partial class ServerViewModel : ObservableObject, IScreen {
     [RelayCommand]
     private async Task Start() {
         await AskForFirewallRulesOnceAsync();
-        await _connection.StartAsync(PickedMode.Mode.Id, PickedMap?.Name);
+        await _connection.StartAsync(PickedMode.Mode.Id, PickedMap?.Name, PickedMap?.WorkshopId);
         HasDraft = false;
     }
 
@@ -226,7 +232,7 @@ public sealed partial class ServerViewModel : ObservableObject, IScreen {
                 await _connection.RunAsync($"game_type {PickedMode.Mode.GameType}; game_mode {PickedMode.Mode.GameModeNumber}");
                 _connection.ActiveModeId = modeId;
             }
-            await _connection.RunAsync($"changelevel {PickedMap.Name}");
+            await _connection.ChangeMapAsync(PickedMap.Name, PickedMap.WorkshopId);
         }
         HasDraft = false;
         OnPropertyChanged(nameof(IsDirty));
@@ -244,7 +250,8 @@ public sealed partial class ServerViewModel : ObservableObject, IScreen {
     [RelayCommand]
     private async Task SetNextMap(MapRowViewModel? row) {
         MapRowViewModel? target = row ?? PickedMap;
-        if (target == null) {
+        // nextlevel only knows the maps in the server's maps folder.
+        if (target == null || target.IsWorkshop) {
             return;
         }
         await _connection.RunAsync($"nextlevel {target.Name}");
@@ -365,6 +372,12 @@ public sealed partial class ServerViewModel : ObservableObject, IScreen {
             Maps.Clear();
             foreach (string map in MapCycleReader.Read(_connection.Paths.MapCycleFile(PickedMode.Mode.Id))) {
                 Maps.Add(new MapRowViewModel(map, _thumbnails.Get(map), OnMapPicked));
+            }
+            // The host's Workshop maps fit any mode; they are played by pick, not in the rotation.
+            foreach (WorkshopItem item in WorkshopLibrary.LoadItems(_connection.Paths)) {
+                WorkshopDownload? download = WorkshopLibrary.FindDownloadById(_connection.Paths, item.Id);
+                string name = download?.MapNames.FirstOrDefault() ?? item.Title;
+                Maps.Add(new MapRowViewModel(name, _thumbnails.Get(item.Id), OnMapPicked, item.Id));
             }
 
             ApplyMapSearch();

@@ -93,7 +93,7 @@ public sealed partial class ServerConnection : ObservableObject, IDisposable {
     [ObservableProperty]
     private string? _serverName;
 
-    /// <summary>"12:34" from AMXX's amx_timeleft, null without a time limit.</summary>
+    /// <summary>"12:34" until the map ends, from the live feed; null without a time limit.</summary>
     [ObservableProperty]
     private string? _timeLeft;
 
@@ -211,32 +211,51 @@ public sealed partial class ServerConnection : ObservableObject, IDisposable {
         return true;
     }
 
-    /// <summary>Starts on the given map when it is installed, else on the first map of the mode.</summary>
-    public async Task StartAsync(string modeId, string? preferredMap = null) {
+    /// <summary>
+    /// Starts on the given map when it is installed, else on the first map of
+    /// the mode. A Workshop map (by id, or a downloaded one by name) starts on
+    /// the first map of the mode and switches once the server has it.
+    /// </summary>
+    public async Task StartAsync(string modeId, string? preferredMap = null, string? workshopId = null) {
         if (IsRunning || IsBusy) {
             return;
         }
 
         bool isPreferredInstalled = preferredMap != null && System.IO.File.Exists(Paths.MapFile(preferredMap));
+        if (workshopId == null && preferredMap != null && !isPreferredInstalled) {
+            workshopId = WorkshopLibrary.FindDownload(Paths, preferredMap)?.Id;
+        }
         string? startMap = isPreferredInstalled ? preferredMap : Process.FirstMapOfMode(modeId);
         if (startMap == null) {
-            AddConsoleLine(new ConsoleLine($"No installed map for mode {modeId}. Run Update maps on the Install screen.", ConsoleLineKind.Normal));
+            AddConsoleLine(new ConsoleLine($"No installed map in the map list of {modeId}. Check cfg\\fun\\mapcycle_{modeId}.txt.", ConsoleLineKind.Normal));
             return;
         }
 
         IsBusy = true;
         try {
-            Process.Start(modeId, startMap, Settings.MaxPlayers, LanAddress, Settings.RconPassword);
+            Process.Start(modeId, startMap, Settings.MaxPlayers, LanAddress, Settings.RconPassword, workshopId);
             Rcon.Password = Settings.RconPassword;
             Rcon.Reset();
             ActiveModeId = modeId;
-            AddConsoleLine(new ConsoleLine($"Starting cs2.exe ({modeId}, {startMap}) on {GameAddress}", ConsoleLineKind.Normal));
+            string mapText = workshopId == null ? startMap : $"Workshop item {workshopId}";
+            AddConsoleLine(new ConsoleLine($"Starting cs2.exe ({modeId}, {mapText}) on {GameAddress}", ConsoleLineKind.Normal));
         } catch (Exception exception) when (exception is InvalidOperationException or System.ComponentModel.Win32Exception or System.IO.IOException) {
             AddConsoleLine(new ConsoleLine(exception.Message, ConsoleLineKind.Normal));
         } finally {
             IsBusy = false;
         }
         await PollAsync();
+    }
+
+    /// <summary>
+    /// Changes the map of the running server. A Workshop map goes through
+    /// host_workshop_map, which downloads it first when the server lacks it.
+    /// </summary>
+    public Task<string?> ChangeMapAsync(string mapName, string? workshopId) {
+        if (workshopId != null) {
+            return RunAsync($"host_workshop_map {workshopId}");
+        }
+        return RunAsync($"changelevel {mapName}");
     }
 
     public async Task StopAsync() {
@@ -305,7 +324,19 @@ public sealed partial class ServerConnection : ObservableObject, IDisposable {
                 ActiveModeId = snapshot.ModeId;
             }
             SetCurrentMap(snapshot.MapName);
+            if (snapshot.NextMap.Length > 0) {
+                NextMap = snapshot.NextMap;
+            }
+            TimeLeft = FormatTimeLeft(snapshot.MapSecondsLeft);
         });
+    }
+
+    /// <summary>"12:34", or null without a time limit (the info bar then shows "-").</summary>
+    internal static string? FormatTimeLeft(int seconds) {
+        if (seconds < 0) {
+            return null;
+        }
+        return $"{seconds / 60}:{seconds % 60:00}";
     }
 
     private void SetCurrentMap(string? mapName) {
@@ -349,15 +380,8 @@ public sealed partial class ServerConnection : ObservableObject, IDisposable {
             MaxPlayers = info.MaxPlayers;
             BotCount = info.Bots;
             SetCurrentMap(info.Map);
-
-            IReadOnlyDictionary<string, string>? rules = await _query.QueryRulesAsync(QueryEndpoint);
-            if (rules != null) {
-                // fun_nextmap and fun_timeleft come from the FunServer plugin, which marks them for the server browser.
-                if (rules.TryGetValue("fun_nextmap", out string? nextMap) && nextMap.Length > 0) {
-                    NextMap = nextMap;
-                }
-                TimeLeft = rules.TryGetValue("fun_timeleft", out string? timeLeft) ? timeLeft : null;
-            }
+            // Next map and time left come with the live feed (OnSnapshotReceived):
+            // CS2 answers no server rules query.
         } finally {
             _isPolling = false;
         }

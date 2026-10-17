@@ -6,6 +6,35 @@ namespace Cs2ServerControl.Tests;
 
 public class LiveFeedParserTests {
     [Fact]
+    public void ReadsTheSteamIdAtTheEndOfAPlayerLine() {
+        var parser = new LiveFeedParser();
+
+        var snapshot = Assert.IsType<LiveSnapshot>(parser.Parse(string.Join('\n',
+            "CSLIVE1|S|de_dust2|classic|60|20|-1|",
+            "P|3|Host|T|1|0|100|0|0|0|0|0|0|ak47|0|0|0|0|-1|-1|-1|76561197960287930",
+            "P|4|Bot|CT|1|1|100|0|0|0|0|0|0|ak47|0|0|0|0|-1|-1|-1|0",
+            "P|5|Old|CT|1|0|100|0|0|0|0|0|0|ak47|0|0|0|0|-1|-1|-1")));
+
+        Assert.Equal([76561197960287930UL, 0UL, 0UL], snapshot.Players.Select(player => player.SteamId));
+    }
+
+    [Fact]
+    public void ReadsTimeLeftAndNextMapFromTheCs2Header() {
+        var parser = new LiveFeedParser();
+
+        var snapshot = Assert.IsType<LiveSnapshot>(parser.Parse("CSLIVE1|S|de_dust2|classic|60|20|754|de_mirage"));
+        var older = Assert.IsType<LiveSnapshot>(parser.Parse("CSLIVE1|S|de_dust2|classic|60|20"));
+
+        Assert.Equal(754, snapshot.MapSecondsLeft);
+        Assert.Equal("de_mirage", snapshot.NextMap);
+        Assert.Equal(-1, older.MapSecondsLeft);
+        Assert.Equal("", older.NextMap);
+        Assert.Equal("12:34", ServerConnection.FormatTimeLeft(754));
+        Assert.Equal("0:05", ServerConnection.FormatTimeLeft(5));
+        Assert.Null(ServerConnection.FormatTimeLeft(-1));
+    }
+
+    [Fact]
     public void ParsesSnapshotWithPlayers() {
         string packet = string.Join('\n',
             "CSLIVE1|S|fy_iceworld|classic|102|20",

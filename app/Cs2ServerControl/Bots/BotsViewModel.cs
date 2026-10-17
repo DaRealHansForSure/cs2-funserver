@@ -77,9 +77,6 @@ public sealed partial class BotsViewModel : ObservableObject, IScreen {
     private bool _autoVacate = true;
 
     [ObservableProperty]
-    private bool _deathmatchOnly;
-
-    [ObservableProperty]
     private bool _deferToHuman = true;
 
     [ObservableProperty]
@@ -102,9 +99,6 @@ public sealed partial class BotsViewModel : ObservableObject, IScreen {
 
     [ObservableProperty]
     private bool _allowGrenades = true;
-
-    [ObservableProperty]
-    private bool _allowShield;
 
     [ObservableProperty]
     private SelectOption _chatter;
@@ -147,7 +141,7 @@ public sealed partial class BotsViewModel : ObservableObject, IScreen {
         _chatter = ChatterOptions[0];
 
         LoadSettingsFromConfig();
-        _skills = BotProfileReader.ReadSkills(connection.Paths.BotProfileFile);
+        _ = LoadSkillsAsync(connection.Paths);
 
         Dispatcher dispatcher = Dispatcher.CurrentDispatcher;
         _connection.Feed.SnapshotReceived += (_, snapshot) => dispatcher.BeginInvoke(() => UpdateBots(snapshot));
@@ -255,7 +249,6 @@ public sealed partial class BotsViewModel : ObservableObject, IScreen {
             new("bot_join_team", JoinTeam.Value),
             new("bot_join_after_player", Flag(WaitForHuman)),
             new("bot_auto_vacate", Flag(AutoVacate)),
-            new("bot_deathmatch", Flag(DeathmatchOnly)),
             new("bot_defer_to_human", Flag(DeferToHuman)),
             new("bot_allow_pistols", Flag(AllowPistols)),
             new("bot_allow_shotguns", Flag(AllowShotguns)),
@@ -264,7 +257,6 @@ public sealed partial class BotsViewModel : ObservableObject, IScreen {
             new("bot_allow_snipers", Flag(AllowSnipers)),
             new("bot_allow_machine_guns", Flag(AllowMachineGuns)),
             new("bot_allow_grenades", Flag(AllowGrenades)),
-            new("bot_allow_shield", Flag(AllowShield)),
             new("bot_chatter", Chatter.Value),
         ];
     }
@@ -284,7 +276,6 @@ public sealed partial class BotsViewModel : ObservableObject, IScreen {
             case nameof(JoinTeam):
             case nameof(WaitForHuman):
             case nameof(AutoVacate):
-            case nameof(DeathmatchOnly):
             case nameof(DeferToHuman):
             case nameof(AllowPistols):
             case nameof(AllowShotguns):
@@ -293,7 +284,6 @@ public sealed partial class BotsViewModel : ObservableObject, IScreen {
             case nameof(AllowSnipers):
             case nameof(AllowMachineGuns):
             case nameof(AllowGrenades):
-            case nameof(AllowShield):
             case nameof(Chatter):
                 return true;
             default:
@@ -463,7 +453,6 @@ public sealed partial class BotsViewModel : ObservableObject, IScreen {
             Chatter = PickOption(ChatterOptions, values, "bot_chatter", Chatter);
             WaitForHuman = ReadFlag(values, "bot_join_after_player", WaitForHuman);
             AutoVacate = ReadFlag(values, "bot_auto_vacate", AutoVacate);
-            DeathmatchOnly = ReadFlag(values, "bot_deathmatch", DeathmatchOnly);
             DeferToHuman = ReadFlag(values, "bot_defer_to_human", DeferToHuman);
             AllowPistols = ReadFlag(values, "bot_allow_pistols", AllowPistols);
             AllowShotguns = ReadFlag(values, "bot_allow_shotguns", AllowShotguns);
@@ -472,7 +461,6 @@ public sealed partial class BotsViewModel : ObservableObject, IScreen {
             AllowSnipers = ReadFlag(values, "bot_allow_snipers", AllowSnipers);
             AllowMachineGuns = ReadFlag(values, "bot_allow_machine_guns", AllowMachineGuns);
             AllowGrenades = ReadFlag(values, "bot_allow_grenades", AllowGrenades);
-            AllowShield = ReadFlag(values, "bot_allow_shield", AllowShield);
         } finally {
             _isLoading = false;
         }
@@ -534,6 +522,14 @@ public sealed partial class BotsViewModel : ObservableObject, IScreen {
     /// nobody plays, added bots too; they then sit on the server unseen.
     /// </summary>
     public bool IsWaitingForHuman => _connection.IsRunning && _savedWaitForHuman && _humanCount == 0;
+
+    /// <summary>In the background: the profile sits in the game's big package, whose directory takes a moment to read.</summary>
+    private async Task LoadSkillsAsync(PackagePaths paths) {
+        _skills = await Task.Run(() => BotProfileReader.ReadSkills(paths));
+        // The rows built before carry "Skill -"; rebuild them with the skills.
+        ActiveBots.Clear();
+        RefreshActiveBots();
+    }
 
     private string SkillText(string botName) {
         if (_skills.TryGetValue(botName, out int skill)) {
