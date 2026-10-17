@@ -17,27 +17,21 @@ public sealed record FirewallRuleState(string Name, string Protocol, int Port, b
 /// </summary>
 public sealed class ServerProcess {
     public const int GamePort = 27015;
-    public const int FastDownloadPort = 27080;
     public const int DefaultMaxPlayers = 20;
     public const int MaxPlayersLimit = 32;
     public const int TvPort = 27020;
 
-    // Below 10 seconds HLTV turns its automatic camera director off, and on
-    // a LAN there is nobody to cheat with a longer delay.
-    private const int TvDelaySeconds = 10;
-
     private static readonly TimeSpan QuitTimeout = TimeSpan.FromSeconds(10);
 
-    private static readonly (string Name, string Protocol, int Port)[] FirewallRules = [
-        ("CS16 LAN Server (UDP)", "UDP", GamePort),
-        ("CS16 LAN Server (TCP)", "TCP", GamePort),
-        ("CS16 LAN Fast-Download", "TCP", FastDownloadPort),
-        ("CS16 LAN TV (HLTV)", "UDP", TvPort),
+    // CS2 players and CSTV only talk UDP. RCON is TCP on the game port, but
+    // only this window uses it, so that port stays closed to the LAN. Maps
+    // come from Steam, there is no download server.
+    internal static readonly (string Name, string Protocol, int Port)[] FirewallRules = [
+        ("CS2 LAN Server (UDP)", "UDP", GamePort),
+        ("CS2 LAN TV (CSTV)", "UDP", TvPort),
     ];
 
     private readonly PackagePaths _paths;
-    private Process? _fastDownload;
-    private Process? _tv;
 
     // The nav build helper is the same hlds.exe, so the path alone does not
     // tell which one is the game server. The command line does, but reading
@@ -145,8 +139,8 @@ public sealed class ServerProcess {
     /// sv_lan keeps it a LAN server that needs no Steam game server token.
     /// An empty server hibernates and then runs no frames at all, so the
     /// plugin would neither run the mode configs nor send the live feed
-    /// while only bots play. fun/local.cfg runs once here; on every map the mode plugin runs it again
-    /// after the mode config.
+    /// while only bots play. fun/local.cfg runs once here; on every map the
+    /// mode plugin runs it again after the mode config.
     /// </summary>
     internal static string BuildArguments(GameMode mode, string startMap, int maxPlayers, IPAddress lanAddress, string rconPassword) {
         return string.Join(' ',
@@ -172,39 +166,6 @@ public sealed class ServerProcess {
         File.WriteAllText(_paths.ActiveModeFile, modeId, System.Text.Encoding.ASCII);
     }
 
-    /// <summary>
-    /// The fast download server is this same exe again, without a window. It
-    /// ends by itself when hlds.exe ends, so it neither dies with the window
-    /// nor outlives the game server.
-    /// </summary>
-    public void StartFastDownload(int hldsProcessId) {
-        string? exe = Environment.ProcessPath;
-        if (exe == null || IsFastDownloadRunning()) {
-            return;
-        }
-
-        _fastDownload = Process.Start(new ProcessStartInfo {
-            FileName = exe,
-            Arguments = $"--fastdl --root \"{_paths.GameDir}\" --port {FastDownloadPort} --watch-pid {hldsProcessId}",
-            UseShellExecute = false,
-            CreateNoWindow = true,
-        });
-    }
-
-    /// <summary>For a server the window attaches to: starts the download server if nobody serves the port.</summary>
-    public void EnsureFastDownload() {
-        Process? hlds = FindHlds();
-        if (hlds != null) {
-            StartFastDownload(hlds.Id);
-        }
-    }
-
-    /// <summary>Another instance may already serve the port, e.g. after the window was reopened.</summary>
-    private static bool IsFastDownloadRunning() {
-        IPEndPoint[] listeners = System.Net.NetworkInformation.IPGlobalProperties.GetIPGlobalProperties().GetActiveTcpListeners();
-        return listeners.Any(listener => listener.Port == FastDownloadPort);
-    }
-
     /// <summary>Waits for hlds.exe to end after "quit", then kills what is left.</summary>
     public async Task WaitForExitOrKillAsync() {
         Process? hlds = FindHlds();
@@ -215,52 +176,6 @@ public sealed class ServerProcess {
             } catch (OperationCanceledException) {
                 TryKill(hlds);
             }
-        }
-        StopFastDownload();
-        StopTv();
-    }
-
-    /// <summary>
-    /// The HLTV proxy for a TV or projector: it joins the game server as one
-    /// spectator slot, and the TV PC connects to it on port 27020.
-    /// </summary>
-    public void StartTv(IPAddress lanAddress) {
-        if (IsTvRunning) {
-            return;
-        }
-
-        string hltvExe = Path.Combine(_paths.ServerDir, "hltv.exe");
-        if (!File.Exists(hltvExe)) {
-            throw new InvalidOperationException("hltv.exe is missing. Run Install or repair on the Install screen.");
-        }
-
-        _tv = Process.Start(new ProcessStartInfo {
-            FileName = hltvExe,
-            Arguments = string.Join(' ',
-                $"-port {TvPort}",
-                $"+connect {lanAddress}:{GamePort}",
-                $"+delay {TvDelaySeconds}",
-                "+maxrate 10000",
-                "+name LAN-TV"),
-            WorkingDirectory = _paths.ServerDir,
-            UseShellExecute = true,
-            WindowStyle = ProcessWindowStyle.Minimized,
-        });
-    }
-
-    public void StopTv() {
-        if (_tv != null) {
-            TryKill(_tv);
-            _tv = null;
-        }
-    }
-
-    public bool IsTvRunning => _tv != null && !_tv.HasExited;
-
-    public void StopFastDownload() {
-        if (_fastDownload != null) {
-            TryKill(_fastDownload);
-            _fastDownload = null;
         }
     }
 

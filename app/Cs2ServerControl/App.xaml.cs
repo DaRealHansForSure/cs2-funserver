@@ -18,12 +18,6 @@ public partial class App : Application {
         base.OnStartup(e);
         AppCommand command = AppCommand.Parse(e.Args);
 
-        if (!command.HasWindow) {
-            ShutdownMode = ShutdownMode.OnExplicitShutdown;
-            _ = RunFastDownloadAsync(command);
-            return;
-        }
-
         _windowMutex = new Mutex(initiallyOwned: true, WindowMutexName, out bool isFirstWindow);
         if (!isFirstWindow) {
             WindowActivator.ActivateOtherInstance();
@@ -54,34 +48,6 @@ public partial class App : Application {
                 "CS2 Server Control", MessageBoxButton.OK, MessageBoxImage.Error);
             Shutdown(1);
         }
-    }
-
-    /// <summary>
-    /// The hidden download server mode: no window, serves until hlds.exe ends
-    /// (or forever without a process to watch), then the process exits.
-    /// </summary>
-    private async Task RunFastDownloadAsync(AppCommand command) {
-        using var stop = new CancellationTokenSource();
-        if (command.WatchProcessId != null) {
-            _ = StopWhenProcessEndsAsync(command.WatchProcessId.Value, stop);
-        }
-
-        try {
-            await new FastDownloadServer(command.Root!, command.Port).RunAsync(stop.Token);
-        } catch (System.Net.Sockets.SocketException) {
-            // The port is taken: another download server already runs.
-        }
-        Shutdown();
-    }
-
-    private static async Task StopWhenProcessEndsAsync(int processId, CancellationTokenSource stop) {
-        try {
-            using System.Diagnostics.Process process = System.Diagnostics.Process.GetProcessById(processId);
-            await process.WaitForExitAsync();
-        } catch (ArgumentException) {
-            // Already gone.
-        }
-        stop.Cancel();
     }
 
     protected override void OnExit(ExitEventArgs e) {

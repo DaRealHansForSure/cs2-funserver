@@ -67,7 +67,9 @@ public sealed partial class FunServerPlugin {
     [CommandHelper(minArgs: 1, usage: "<target>", whoCanExecute: CommandUsage.SERVER_ONLY)]
     public void OnRocket(CCSPlayerController? caller, CommandInfo command) {
         foreach (CCSPlayerPawn pawn in AlivePawns(command.GetArg(1))) {
-            pawn.AbsVelocity.Z = 1200;
+            // Writing AbsVelocity does not reach the movement code; Teleport
+            // with only a velocity is the engine's own way to push a player.
+            pawn.Teleport(null, null, new Vector(pawn.AbsVelocity.X, pawn.AbsVelocity.Y, 1200));
             CCSPlayerPawn launched = pawn;
             AddTimer(1.6f, () => {
                 if (launched.IsValid && launched.LifeState == (byte)LifeState_t.LIFE_ALIVE) {

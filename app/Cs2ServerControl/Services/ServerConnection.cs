@@ -93,9 +93,6 @@ public sealed partial class ServerConnection : ObservableObject, IDisposable {
     [ObservableProperty]
     private string? _serverName;
 
-    [ObservableProperty]
-    private bool _isTvRunning;
-
     /// <summary>"12:34" from AMXX's amx_timeleft, null without a time limit.</summary>
     [ObservableProperty]
     private string? _timeLeft;
@@ -328,13 +325,10 @@ public sealed partial class ServerConnection : ObservableObject, IDisposable {
         try {
             bool wasRunning = IsRunning;
             IsRunning = Process.IsRunning;
-            IsTvRunning = Process.IsTvRunning;
             StartedAt = IsRunning ? Process.StartedAt : null;
 
             if (!IsRunning) {
                 if (wasRunning) {
-                    Process.StopFastDownload();
-                    Process.StopTv();
                     Rcon.Reset();
                 }
                 PlayerCount = 0;

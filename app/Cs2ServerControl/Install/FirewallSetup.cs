@@ -5,18 +5,13 @@ using Cs2ServerControl.Services;
 namespace Cs2ServerControl.Install;
 
 /// <summary>
-/// The inbound Windows Firewall rules for the game, fast download and HLTV
-/// ports, the same rules <see cref="ServerProcess.AddFirewallRulesAsync"/> adds.
-/// The app is not elevated, so missing rules go through one elevated netsh
-/// run; when every rule is there, no UAC prompt shows up at all.
+/// The inbound Windows Firewall rules for the game and CSTV ports, the same
+/// rules <see cref="ServerProcess.AddFirewallRulesAsync"/> adds. The app is
+/// not elevated, so missing rules go through one elevated netsh run; when
+/// every rule is there, no UAC prompt shows up at all.
 /// </summary>
 internal sealed class FirewallSetup {
-    private static readonly (string Name, string Protocol, int Port)[] Rules = [
-        ("CS16 LAN Server (UDP)", "UDP", ServerProcess.GamePort),
-        ("CS16 LAN Server (TCP)", "TCP", ServerProcess.GamePort),
-        ("CS16 LAN Fast-Download", "TCP", ServerProcess.FastDownloadPort),
-        ("CS16 LAN TV (HLTV)", "UDP", ServerProcess.TvPort),
-    ];
+    private static readonly (string Name, string Protocol, int Port)[] Rules = ServerProcess.FirewallRules;
 
     private readonly InstallLog _log;
 

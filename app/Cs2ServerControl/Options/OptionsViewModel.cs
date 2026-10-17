@@ -81,9 +81,9 @@ public sealed partial class OptionsViewModel : ObservableObject, IScreen {
     public ObservableCollection<FirewallRow> FirewallRules { get; } = [];
 
     public IReadOnlyList<PortRow> Ports { get; } = [
-        new("Game", "UDP and TCP", ServerProcess.GamePort, "Players join here, LAN browser"),
-        new("Fast download", "TCP", ServerProcess.FastDownloadPort, "Maps and sounds for joining players"),
-        new("TV (HLTV)", "UDP", ServerProcess.TvPort, "Spectator view for a TV or projector"),
+        new("Game", "UDP", ServerProcess.GamePort, "Players join here, LAN browser"),
+        new("RCON", "TCP", ServerProcess.GamePort, "This window only, stays closed"),
+        new("TV (CSTV)", "UDP", ServerProcess.TvPort, "Spectator view for a TV or projector"),
         new("Nav helper", "UDP", NavBuilder.HelperPort, "Hidden server for nav files, this PC only"),
         new("Live feed", "UDP", LiveFeedListener.Port, "Live Map data, this PC only"),
     ];
