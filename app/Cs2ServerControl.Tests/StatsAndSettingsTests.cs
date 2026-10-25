@@ -40,6 +40,24 @@ public class StatsTests {
     }
 
     [Fact]
+    public void CollectsThePlayerDetails() {
+        PlayerStats peter = StatsReader.BuildLeaderboard(GameLog, null).Single(player => player.Name == "Peter");
+
+        Assert.Equal(1, peter.Headshots);
+        Assert.Equal(33, peter.HeadshotPercent);
+        Assert.Equal(3, peter.BestStreak);
+        Assert.Equal(new WeaponTally("ak47", 2, 0), peter.Weapons[0]);
+        Assert.Equal(new WeaponTally("knife_t", 1, 1), peter.Weapons[1]);
+        Assert.Equal(new OpponentTally("bjaren", true, 2, 1), peter.Opponents[0]);
+        Assert.Equal(new OpponentTally("Simon", false, 1, 0), peter.Opponents[1]);
+        Assert.Equal(new MapTally("de_dust2", 3, 1), Assert.Single(peter.Maps));
+        PlayerEvent newest = peter.RecentEvents[0];
+        Assert.False(newest.IsKill);
+        Assert.Equal("bjaren", newest.Other);
+        Assert.Equal(new DateTime(2026, 10, 17, 0, 35, 0), newest.Time);
+    }
+
+    [Fact]
     public void LeavesOutKillsBeforeThePeriod() {
         IReadOnlyList<PlayerStats> board = StatsReader.BuildLeaderboard(GameLog, new DateTime(2026, 10, 17, 0, 34, 35));
 

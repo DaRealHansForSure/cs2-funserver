@@ -1,0 +1,24 @@
+# Layout rules for editors and dotnet format. The code already follows them:
+# four spaces, K&R braces, braces on every block.
+root = true
+
+[*]
+indent_style = space
+indent_size = 4
+charset = utf-8
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+[*.{yml,yaml,json}]
+indent_size = 2
+
+[*.{csproj,props,targets,xml}]
+indent_size = 2
+
+[*.cs]
+csharp_new_line_before_open_brace = none
+csharp_new_line_before_else = false
+csharp_new_line_before_catch = false
+csharp_new_line_before_finally = false
+csharp_prefer_braces = true:error
+dotnet_diagnostic.IDE0011.severity = error

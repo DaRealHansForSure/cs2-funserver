@@ -61,7 +61,7 @@ public sealed partial class ShellViewModel : ObservableObject {
         LiveMap = new LiveMapViewModel(connection, dialogs, killIcons);
         Server = new ServerViewModel(connection, dialogs);
         Bots = new BotsViewModel(connection);
-        Stats = new StatsViewModel(connection);
+        Stats = new StatsViewModel(connection, dialogs, killIcons);
         Install = new InstallViewModel(connection, dialogs);
         InfoBar = new ServerInfoBarViewModel(connection);
         Maps = new MapsViewModel(connection, dialogs, PickOnServer);

@@ -81,6 +81,8 @@ public sealed partial class MapsViewModel : ObservableObject, IScreen {
         _pickOnServer = pickOnServer;
         _thumbnails = new MapThumbnails(connection.Paths);
         Workshop = new WorkshopViewModel(connection, dialogs, pickOnServer);
+        // The game's map pictures arrive in the background on the first start.
+        MapThumbnails.PictureChanged += OnPictureChanged;
 
         List<MapFilter> filters = [new("All maps", _ => true)];
         foreach (GameMode mode in GameModes.All) {
@@ -129,10 +131,21 @@ public sealed partial class MapsViewModel : ObservableObject, IScreen {
         IReadOnlyList<MapLibraryEntry> entries = await Task.Run(() => MapLibrary.Scan(paths));
 
         _allRows = entries.Select(entry => new MapLibraryRowViewModel(entry, PictureOf(entry))).ToList();
+        UpdateSummary();
+        ApplyFilter();
+    }
+
+    private void UpdateSummary() {
         int withoutPicture = _allRows.Count(row => !row.HasPicture);
         int inNoList = _allRows.Count(row => row.IsInNoMode);
         Summary = $"{_allRows.Count} maps · {inNoList} in no map list · {withoutPicture} without picture";
-        ApplyFilter();
+    }
+
+    private void OnPictureChanged(object? sender, string mapName) {
+        foreach (MapLibraryRowViewModel row in _allRows.Where(row => string.Equals(row.Name, mapName, StringComparison.OrdinalIgnoreCase))) {
+            row.Thumbnail = PictureOf(row.Entry);
+        }
+        UpdateSummary();
     }
 
     /// <summary>A Workshop map has the picture from its Workshop page, saved under its item id.</summary>

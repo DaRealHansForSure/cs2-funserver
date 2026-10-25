@@ -72,9 +72,11 @@ public static class GameRules {
             error = string.Create(CultureInfo.InvariantCulture, $"{rule.Label}: {rule.Min:0.##} to {rule.Max:0.##}.");
             return false;
         }
-        value = rule.Kind == GameRuleKind.Decimal
-            ? number.ToString("0.##", CultureInfo.InvariantCulture)
-            : ((int)Math.Round(number)).ToString(CultureInfo.InvariantCulture);
+        if (rule.Kind == GameRuleKind.Decimal) {
+            value = number.ToString("0.##", CultureInfo.InvariantCulture);
+        } else {
+            value = ((int)Math.Round(number)).ToString(CultureInfo.InvariantCulture);
+        }
         return true;
     }
 }

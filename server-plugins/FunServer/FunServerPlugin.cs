@@ -29,6 +29,7 @@ public sealed partial class FunServerPlugin : BasePlugin {
         LoadZombie();
         LoadDeathrun();
         LoadFunLog();
+        LoadAnnouncements();
         Server.PrintToConsole($"[FunServer] {ModuleVersion} loaded on {Server.MapName}");
     }
 

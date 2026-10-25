@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <!-- Square corners and the app's own colors: window background, T red, CT blue, accent. -->
+  <rect width="128" height="128" fill="#1C1C1C"/>
+  <rect x="8" y="8" width="112" height="112" fill="none" stroke="#3A3A3A" stroke-width="2"/>
+  <path d="M64 24 A40 40 0 0 0 64 104" fill="none" stroke="#FF3F3F" stroke-width="8"/>
+  <path d="M64 24 A40 40 0 0 1 64 104" fill="none" stroke="#99CCFF" stroke-width="8"/>
+  <rect x="60" y="14" width="8" height="30" fill="#5ED3C0"/>
+  <rect x="60" y="84" width="8" height="30" fill="#5ED3C0"/>
+  <rect x="14" y="60" width="30" height="8" fill="#5ED3C0"/>
+  <rect x="84" y="60" width="30" height="8" fill="#5ED3C0"/>
+  <rect x="60" y="60" width="8" height="8" fill="#F3F3F3"/>
+</svg>

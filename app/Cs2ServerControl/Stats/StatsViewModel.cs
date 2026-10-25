@@ -11,6 +11,7 @@ namespace Cs2ServerControl.Stats;
 public sealed record LeaderboardRow(int Rank, PlayerStats Stats) {
     public string KillDeathText => Stats.KillDeathRatio.ToString("0.00", CultureInfo.InvariantCulture);
     public string WeaponText => WeaponNames.Display(Stats.FavoriteWeapon == "-" ? null : Stats.FavoriteWeapon);
+    public string HeadshotText => $"{Stats.HeadshotPercent:0} %";
 }
 
 public sealed record MapPlayRow(MapPlay Play) {
@@ -43,6 +44,8 @@ public sealed partial class StatsViewModel : ObservableObject, IScreen {
 
     private readonly ServerConnection _connection;
     private readonly StatsReader _reader;
+    private readonly IDialogService _dialogs;
+    private readonly KillIcons _killIcons;
     private readonly DispatcherTimer _refreshTimer;
     private DateTime? _mapStartedAt;
     private bool _isRefreshing;
@@ -63,8 +66,10 @@ public sealed partial class StatsViewModel : ObservableObject, IScreen {
     [ObservableProperty]
     private string _mapProgressText = "";
 
-    public StatsViewModel(ServerConnection connection) {
+    public StatsViewModel(ServerConnection connection, IDialogService dialogs, KillIcons killIcons) {
         _connection = connection;
+        _dialogs = dialogs;
+        _killIcons = killIcons;
         _reader = new StatsReader(connection.Paths);
         _selectedPeriod = Periods[0];
         _refreshTimer = new DispatcherTimer(RefreshInterval, DispatcherPriority.Background, async (_, _) => await RefreshAsync(), Dispatcher.CurrentDispatcher);
@@ -119,6 +124,14 @@ public sealed partial class StatsViewModel : ObservableObject, IScreen {
             return $"{(int)duration.TotalHours} h {duration.Minutes:00} min";
         }
         return $"{duration.Minutes} min";
+    }
+
+    [RelayCommand]
+    private Task ShowPlayer(LeaderboardRow? row) {
+        if (row == null) {
+            return Task.CompletedTask;
+        }
+        return _dialogs.ShowAsync(new PlayerDetailsViewModel(row.Stats, SelectedPeriod.Title, _killIcons));
     }
 
     partial void OnSelectedPeriodChanged(StatsPeriod value) {

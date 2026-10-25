@@ -48,9 +48,14 @@ public sealed partial class AdminsViewModel : ObservableObject {
     public ObservableCollection<AdminRow> Admins { get; } = [];
     public ObservableCollection<OnlinePlayerRow> OnlinePlayers { get; } = [];
 
-    public string RuleText => Admins.Count == 0
-        ? "Nobody is listed, so everybody on the LAN counts as admin."
-        : "Only the admins below may grab players in game.";
+    public string RuleText {
+        get {
+            if (Admins.Count == 0) {
+                return "Nobody is listed, so everybody on the LAN counts as admin.";
+            }
+            return "Only the admins below may grab players in game.";
+        }
+    }
 
     public void Load() {
         Admins.Clear();
@@ -97,8 +102,10 @@ public sealed partial class AdminsViewModel : ObservableObject {
     private async Task<bool> SaveAsync(IReadOnlyList<Admin> admins) {
         try {
             AdminList.Save(_connection.Paths, admins);
-        } catch (Exception exception) when (exception is IOException or UnauthorizedAccessException) {
-            Error = "Could not write admins.json: " + exception.Message;
+        } catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or NotSupportedException or System.Security.SecurityException) {
+            // The type and code too: a security suite that blocks the write can leave the message empty.
+            string message = string.IsNullOrWhiteSpace(exception.Message) ? "(no message)" : exception.Message.Trim();
+            Error = $"Could not write {AdminList.FilePath(_connection.Paths)}: {exception.GetType().Name}, 0x{exception.HResult:X8}, {message}";
             return false;
         }
         Error = null;

@@ -97,11 +97,12 @@ public sealed class PackagePaths {
             candidate = Path.GetDirectoryName(candidate.TrimEnd(Path.DirectorySeparatorChar));
         }
 
-        // Before the first install there is no server\ yet. Walking up for
-        // tools\ alone still finds the package, so the window can say so.
+        // A freshly unpacked package has neither server\ nor tools\ yet, but it
+        // ships server-files\. Not tools\ alone: some unrelated parent folder
+        // (C:\tools) would then pass for the package.
         candidate = AppContext.BaseDirectory;
         while (candidate != null) {
-            if (Directory.Exists(Path.Combine(candidate, "tools"))) {
+            if (Directory.Exists(Path.Combine(candidate, "server-files"))) {
                 return new PackagePaths(candidate);
             }
             candidate = Path.GetDirectoryName(candidate.TrimEnd(Path.DirectorySeparatorChar));

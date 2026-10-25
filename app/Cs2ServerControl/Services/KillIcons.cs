@@ -85,7 +85,7 @@ public sealed class KillIcons {
             try {
                 using var package = new Package();
                 package.Read(packageFile);
-                if (!package.Entries.TryGetValue("vsvg_c", out List<PackageEntry>? entries)) {
+                if (package.Entries == null || !package.Entries.TryGetValue("vsvg_c", out List<PackageEntry>? entries)) {
                     return _svgFiles;
                 }
                 foreach (PackageEntry entry in entries) {

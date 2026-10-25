@@ -4,10 +4,39 @@ using System.Text.RegularExpressions;
 
 namespace Cs2ServerControl.Services;
 
+public sealed record WeaponTally(string Weapon, int Kills, int Headshots);
+
+/// <summary>One other player: how often this player killed them and how often they killed this player.</summary>
+public sealed record OpponentTally(string Name, bool IsBot, int Kills, int Deaths);
+
+public sealed record MapTally(string Map, int Kills, int Deaths);
+
+/// <summary>A kill or death of one player, seen from that player: IsKill false means Other killed them.</summary>
+public sealed record PlayerEvent(DateTime Time, string Map, bool IsKill, string Other, string Weapon, bool IsHeadshot);
+
 public sealed record PlayerStats(
     string Name, bool IsBot, int Kills, int Deaths, int Suicides, int KnifeKills, int GrenadeKills, string FavoriteWeapon) {
     /// <summary>Kills per death, kills alone when somebody never died.</summary>
     public double KillDeathRatio => Deaths == 0 ? Kills : Math.Round((double)Kills / Deaths, 2);
+
+    public int Headshots { get; init; }
+
+    /// <summary>The most kills in a row without dying in between.</summary>
+    public int BestStreak { get; init; }
+
+    public double HeadshotPercent => Kills == 0 ? 0 : Math.Round(100.0 * Headshots / Kills, 0);
+
+    /// <summary>Most kills first.</summary>
+    public IReadOnlyList<WeaponTally> Weapons { get; init; } = [];
+
+    /// <summary>The players this one met most first (kills plus deaths).</summary>
+    public IReadOnlyList<OpponentTally> Opponents { get; init; } = [];
+
+    /// <summary>In the order the maps were played.</summary>
+    public IReadOnlyList<MapTally> Maps { get; init; } = [];
+
+    /// <summary>The newest kills and deaths first, at most RecentEventCount.</summary>
+    public IReadOnlyList<PlayerEvent> RecentEvents { get; init; } = [];
 }
 
 public sealed record MapPlay(string Map, string? ModeId, DateTime StartedAt, TimeSpan Duration, bool IsRunning);
@@ -53,35 +82,36 @@ public sealed partial class StatsReader(PackagePaths paths) {
 
     internal static IReadOnlyList<PlayerStats> BuildLeaderboard(IEnumerable<string> lines, DateTime? since) {
         var players = new Dictionary<string, PlayerTally>(StringComparer.Ordinal);
+        string map = "-";
 
         foreach (string line in lines) {
+            Match mapChange = MapChangeLine().Match(line);
+            if (mapChange.Success) {
+                map = mapChange.Groups["map"].Value;
+                continue;
+            }
+
             Match kill = KillLine().Match(line);
             if (kill.Success) {
-                if (!IsInPeriod(kill.Groups["time"].Value, since)) {
+                string time = kill.Groups["time"].Value;
+                if (!IsInPeriod(time, since)) {
                     continue;
                 }
+                TryParseLogTime(time, out DateTime killedAt);
 
                 string weapon = kill.Groups["weapon"].Value;
+                bool isHeadshot = kill.Groups["headshot"].Success;
                 PlayerTally killer = Tally(players, kill.Groups["killer"].Value, kill.Groups["killerAuth"].Value);
                 PlayerTally victim = Tally(players, kill.Groups["victim"].Value, kill.Groups["victimAuth"].Value);
-                killer.Kills++;
-                killer.CountWeapon(weapon);
-                // CS2 names knife skins (knife_t, bayonet ...) and the HE grenade its own way.
-                if (WeaponNames.IsKnife(weapon)) {
-                    killer.KnifeKills++;
-                }
-                if (weapon is "hegrenade" or "grenade") {
-                    killer.GrenadeKills++;
-                }
-                victim.Deaths++;
+                killer.AddKill(new PlayerEvent(killedAt, map, IsKill: true, victim.Name, weapon, isHeadshot), victim.IsBot);
+                victim.AddDeath(new PlayerEvent(killedAt, map, IsKill: false, killer.Name, weapon, isHeadshot), killer.IsBot);
                 continue;
             }
 
             Match suicide = SuicideLine().Match(line);
             if (suicide.Success && IsInPeriod(suicide.Groups["time"].Value, since)) {
                 PlayerTally player = Tally(players, suicide.Groups["name"].Value, suicide.Groups["auth"].Value);
-                player.Deaths++;
-                player.Suicides++;
+                player.AddSuicide(map);
             }
         }
 
@@ -180,27 +210,105 @@ public sealed partial class StatsReader(PackagePaths paths) {
     }
 
     private sealed class PlayerTally(string name, bool isBot) {
-        private readonly Dictionary<string, int> _killsByWeapon = new(StringComparer.Ordinal);
+        // The details dialog lists this many; older ones are dropped while reading.
+        private const int RecentEventCount = 30;
 
-        public int Kills { get; set; }
-        public int Deaths { get; set; }
-        public int Suicides { get; set; }
-        public int KnifeKills { get; set; }
-        public int GrenadeKills { get; set; }
+        private readonly Dictionary<string, (int Kills, int Headshots)> _weapons = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, (bool IsBot, int Kills, int Deaths)> _opponents = new(StringComparer.Ordinal);
+        // A list, not a dictionary: the maps stay in the order they were played, a map played twice counts as one.
+        private readonly List<(string Map, int Kills, int Deaths)> _maps = [];
+        private readonly Queue<PlayerEvent> _recent = new();
+        private int _streak;
+        private int _bestStreak;
+        private int _kills;
+        private int _deaths;
+        private int _suicides;
+        private int _knifeKills;
+        private int _grenadeKills;
+        private int _headshots;
 
-        public void CountWeapon(string weapon) {
-            _killsByWeapon[weapon] = _killsByWeapon.GetValueOrDefault(weapon) + 1;
+        public string Name => name;
+        public bool IsBot => isBot;
+
+        public void AddKill(PlayerEvent kill, bool isVictimBot) {
+            _kills++;
+            _streak++;
+            _bestStreak = Math.Max(_bestStreak, _streak);
+            if (kill.IsHeadshot) {
+                _headshots++;
+            }
+            // CS2 names knife skins (knife_t, bayonet ...) and the HE grenade its own way.
+            if (WeaponNames.IsKnife(kill.Weapon)) {
+                _knifeKills++;
+            }
+            if (kill.Weapon is "hegrenade" or "grenade") {
+                _grenadeKills++;
+            }
+            (int weaponKills, int weaponHeadshots) = _weapons.GetValueOrDefault(kill.Weapon);
+            _weapons[kill.Weapon] = (weaponKills + 1, weaponHeadshots + (kill.IsHeadshot ? 1 : 0));
+            (_, int opponentKills, int opponentDeaths) = _opponents.GetValueOrDefault(kill.Other);
+            _opponents[kill.Other] = (isVictimBot, opponentKills + 1, opponentDeaths);
+            CountOnMap(kill.Map, kills: 1, deaths: 0);
+            Remember(kill);
+        }
+
+        public void AddDeath(PlayerEvent death, bool isKillerBot) {
+            _deaths++;
+            _streak = 0;
+            (_, int opponentKills, int opponentDeaths) = _opponents.GetValueOrDefault(death.Other);
+            _opponents[death.Other] = (isKillerBot, opponentKills, opponentDeaths + 1);
+            CountOnMap(death.Map, kills: 0, deaths: 1);
+            Remember(death);
+        }
+
+        public void AddSuicide(string map) {
+            _deaths++;
+            _suicides++;
+            _streak = 0;
+            CountOnMap(map, kills: 0, deaths: 1);
+        }
+
+        private void CountOnMap(string map, int kills, int deaths) {
+            int index = _maps.FindIndex(entry => entry.Map == map);
+            if (index < 0) {
+                _maps.Add((map, kills, deaths));
+                return;
+            }
+            _maps[index] = (map, _maps[index].Kills + kills, _maps[index].Deaths + deaths);
+        }
+
+        private void Remember(PlayerEvent playerEvent) {
+            _recent.Enqueue(playerEvent);
+            if (_recent.Count > RecentEventCount) {
+                _recent.Dequeue();
+            }
         }
 
         public PlayerStats ToStats() {
-            string favorite = _killsByWeapon.Count == 0 ? "-" : _killsByWeapon.MaxBy(pair => pair.Value).Key;
-            return new PlayerStats(name, isBot, Kills, Deaths, Suicides, KnifeKills, GrenadeKills, favorite);
+            List<WeaponTally> weapons = _weapons
+                .Select(pair => new WeaponTally(pair.Key, pair.Value.Kills, pair.Value.Headshots))
+                .OrderByDescending(weapon => weapon.Kills)
+                .ThenBy(weapon => weapon.Weapon, StringComparer.Ordinal)
+                .ToList();
+            string favorite = weapons.Count == 0 ? "-" : weapons[0].Weapon;
+            return new PlayerStats(name, isBot, _kills, _deaths, _suicides, _knifeKills, _grenadeKills, favorite) {
+                Headshots = _headshots,
+                BestStreak = _bestStreak,
+                Weapons = weapons,
+                Opponents = _opponents
+                    .Select(pair => new OpponentTally(pair.Key, pair.Value.IsBot, pair.Value.Kills, pair.Value.Deaths))
+                    .OrderByDescending(opponent => opponent.Kills + opponent.Deaths)
+                    .ThenBy(opponent => opponent.Name, StringComparer.OrdinalIgnoreCase)
+                    .ToList(),
+                Maps = _maps.Select(entry => new MapTally(entry.Map, entry.Kills, entry.Deaths)).ToList(),
+                RecentEvents = _recent.Reverse().ToList(),
+            };
         }
     }
 
-    // L 10/17/2026 - 00:34:24: "Peter<33><76561197960287930><CT>" killed "Tom<29><BOT><TERRORIST>" with "sg552"
+    // L 10/17/2026 - 00:34:24: "Peter<33><76561197960287930><CT>" killed "Tom<29><BOT><TERRORIST>" with "sg552" (headshot)
     // CS2's own game log puts the positions behind each name: "Peter<3><[U:1:1]><CT>" [81 -1549 -176] killed ...
-    [GeneratedRegex(@"^L (?<time>\d{2}/\d{2}/\d{4} - \d{2}:\d{2}:\d{2}): ""(?<killer>.+?)<\d+><(?<killerAuth>[^>]*)><[^>]*>""(?: \[[^\]]*\])? killed ""(?<victim>.+?)<\d+><(?<victimAuth>[^>]*)><[^>]*>""(?: \[[^\]]*\])? with ""(?<weapon>[^""]+)""")]
+    [GeneratedRegex(@"^L (?<time>\d{2}/\d{2}/\d{4} - \d{2}:\d{2}:\d{2}): ""(?<killer>.+?)<\d+><(?<killerAuth>[^>]*)><[^>]*>""(?: \[[^\]]*\])? killed ""(?<victim>.+?)<\d+><(?<victimAuth>[^>]*)><[^>]*>""(?: \[[^\]]*\])? with ""(?<weapon>[^""]+)""(?<headshot> \(headshot\))?")]
     private static partial Regex KillLine();
 
     // L 10/17/2026 - 00:39:00: "Peter<4><STEAM_ID_LAN><TERRORIST>" committed suicide with "world"

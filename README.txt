@@ -55,6 +55,7 @@ MODES
 
 To change the mode during the party, type !mode in chat: everybody votes
 for 20 seconds by typing the number of a mode.
+Type !help in chat for the rules of the running mode and the controls.
 
 
 WORKSHOP MAPS

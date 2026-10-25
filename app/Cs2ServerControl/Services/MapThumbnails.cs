@@ -7,7 +7,8 @@ namespace Cs2ServerControl.Services;
 
 /// <summary>
 /// Small map pictures: a .jpg or .png of the host's in tools\previews, else
-/// a loose radar image of the map from resource\overviews.
+/// the picture of the game's own map vote (GameScreenshots), else a loose
+/// radar image of the map from resource\overviews.
 /// </summary>
 public sealed class MapThumbnails {
     // WPF reads these without extra codecs; the radar .tga files are skipped.
@@ -43,7 +44,10 @@ public sealed class MapThumbnails {
     }
 
     private ImageSource? Load(string mapName) {
-        foreach (string folder in new[] { _paths.PreviewsDir, _paths.OverviewsDir }) {
+        // The host's own pictures first, then the game's map vote picture, the radar last.
+        string[] folders = [_paths.PreviewsDir, GameScreenshots.CacheDir(_paths), _paths.OverviewsDir];
+        GameScreenshots.EnsureExtracted(_paths);
+        foreach (string folder in folders) {
             foreach (string extension in Extensions) {
                 string candidate = Path.Combine(folder, mapName + extension);
                 if (!File.Exists(candidate)) {
