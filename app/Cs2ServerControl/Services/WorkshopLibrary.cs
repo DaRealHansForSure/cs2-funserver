@@ -95,7 +95,7 @@ public static partial class WorkshopLibrary {
             using var package = new Package();
             package.Read(packageFile);
             List<string> mapNames = [];
-            if (package.Entries.TryGetValue("vpk", out List<PackageEntry>? entries)) {
+            if (package.Entries != null && package.Entries.TryGetValue("vpk", out List<PackageEntry>? entries)) {
                 mapNames = entries
                     .Where(entry => entry.DirectoryName.Equals("maps", StringComparison.OrdinalIgnoreCase))
                     .Select(entry => entry.FileName.ToLowerInvariant())
