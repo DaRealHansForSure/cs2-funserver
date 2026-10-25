@@ -6,7 +6,7 @@
 
 **A Counter-Strike 2 fun server for your LAN party, installed and run from one Windows app.**
 
-[![Release 0.4.0](https://img.shields.io/badge/release-0.4.0-1c1c1c?style=flat-square)](CHANGELOG.md)
+[![Release 0.4.1](https://img.shields.io/badge/release-0.4.1-1c1c1c?style=flat-square)](CHANGELOG.md)
 ![.NET 10](https://img.shields.io/badge/.NET-10-512bd4?style=flat-square&logo=dotnet&logoColor=white)
 ![Windows 10 and 11](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0f1316?style=flat-square)
 [![MIT License](https://img.shields.io/badge/license-MIT-57ab5a?style=flat-square)](LICENSE)
@@ -34,9 +34,14 @@ ported to Valve's current game.
 plugin, starts and stops the server, and shows every player on a live 3D map while you play on
 the same PC. No config files to edit, no console commands to remember, no binds for the players.
 
+<a href="docs/images/screen-server.png">
+  <img src="docs/images/screen-server.png" alt="The Server screen of CS2 Server Control: server settings and game rules on the left, the server console with RCON commands on the right">
+</a>
+
 ## Contents
 
 - [Features](#features)
+- [Screenshots](#screenshots)
 - [Status](#status)
 - [Known issues](#known-issues)
 - [Quick start](#quick-start)
@@ -73,6 +78,18 @@ the same PC. No config files to edit, no console commands to remember, no binds 
   and lets SteamCMD fetch only what differs.
 - **Never steals the focus**: the server runs on a hidden desktop, so the host can play on the
   same PC.
+
+## Screenshots
+
+| Maps | Bots |
+|---|---|
+| [<img src="docs/images/screen-maps.png" alt="The Maps screen: installed maps with pictures, the modes they play in, size, and buttons for details, pick and next map">](docs/images/screen-maps.png) | [<img src="docs/images/screen-bots.png" alt="The Bots screen: difficulty, how many bots fill up the server, their teams and the weapons they may use">](docs/images/screen-bots.png) |
+| **Maps**: every installed map with its picture and modes; Workshop maps on their own tab. | **Bots**: CS2's built-in bots, from difficulty to the weapons they may buy. |
+
+| Install |
+|---|
+| [<img src="docs/images/screen-install.png" alt="The Install screen: install or repair, the admin list and rebuilding the plugins">](docs/images/screen-install.png) |
+| **Install**: one button for the server, Metamod:Source, CounterStrikeSharp and the fun plugin, plus the admin list. |
 
 ## Status
 

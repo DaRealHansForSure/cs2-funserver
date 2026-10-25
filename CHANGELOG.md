@@ -4,6 +4,12 @@ Every release of the CS2 LAN Fun Server. The project follows
 [Semantic Versioning](https://semver.org/); while the major version is 0,
 a minor release may change configs and screens.
 
+## [0.4.1] - 2026-10-25
+
+### Added
+
+- Screenshots of the Server, Maps, Bots and Install screens in the README.
+
 ## [0.4.0] - 2026-10-25
 
 ### Added
@@ -90,7 +96,8 @@ a minor release may change configs and screens.
 - The first install copies the CS2 of the local Steam library instead of
   downloading 60 GB.
 
-[0.4.0]: https://github.com/DaRealHansForSure/CS2-FunServer/compare/v0.3.0...v0.4.0
-[0.3.0]: https://github.com/DaRealHansForSure/CS2-FunServer/compare/v0.2.0...v0.3.0
-[0.2.0]: https://github.com/DaRealHansForSure/CS2-FunServer/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/DaRealHansForSure/CS2-FunServer/releases/tag/v0.1.0
+[0.4.1]: https://github.com/DaRealHansForSure/cs2-funserver/compare/v0.4.0...v0.4.1
+[0.4.0]: https://github.com/DaRealHansForSure/cs2-funserver/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/DaRealHansForSure/cs2-funserver/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/DaRealHansForSure/cs2-funserver/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/DaRealHansForSure/cs2-funserver/releases/tag/v0.1.0
