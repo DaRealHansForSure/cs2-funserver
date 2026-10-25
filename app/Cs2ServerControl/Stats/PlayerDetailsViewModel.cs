@@ -14,9 +14,15 @@ public sealed record OpponentRow(string Name, bool IsBot, int Kills, int Deaths)
 }
 
 public sealed record MapRow(string Map, int Kills, int Deaths) {
-    public string KillDeathText => Deaths == 0
-        ? Kills.ToString(CultureInfo.InvariantCulture)
-        : ((double)Kills / Deaths).ToString("0.00", CultureInfo.InvariantCulture);
+    public string KillDeathText {
+        get {
+            // Without a death the ratio is undefined; the plain kill count is what a player expects.
+            if (Deaths == 0) {
+                return Kills.ToString(CultureInfo.InvariantCulture);
+            }
+            return ((double)Kills / Deaths).ToString("0.00", CultureInfo.InvariantCulture);
+        }
+    }
 }
 
 public sealed record EventRow(string TimeText, bool IsKill, string Text, ImageSource? WeaponIcon, string WeaponName, bool IsHeadshot);

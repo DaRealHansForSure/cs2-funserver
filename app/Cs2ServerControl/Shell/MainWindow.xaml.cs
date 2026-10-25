@@ -130,9 +130,11 @@ public partial class MainWindow : Window {
         // A maximized chrome window hangs over the screen edge by the resize
         // border, so the content needs that much margin to stay visible.
         Thickness overhang = SystemParameters.WindowResizeBorderThickness;
-        RootGrid.Margin = isMaximized
-            ? new Thickness(overhang.Left + 2, overhang.Top + 2, overhang.Right + 2, overhang.Bottom + 2)
-            : new Thickness(0);
+        if (isMaximized) {
+            RootGrid.Margin = new Thickness(overhang.Left + 2, overhang.Top + 2, overhang.Right + 2, overhang.Bottom + 2);
+        } else {
+            RootGrid.Margin = new Thickness(0);
+        }
         MaximizeGlyph.Data = Geometry.Parse(isMaximized ? RestoreGlyphData : MaximizeGlyphData);
         MaximizeButton.SetValue(System.Windows.Automation.AutomationProperties.NameProperty, isMaximized ? "Restore" : "Maximize");
     }

@@ -48,9 +48,14 @@ public sealed partial class AdminsViewModel : ObservableObject {
     public ObservableCollection<AdminRow> Admins { get; } = [];
     public ObservableCollection<OnlinePlayerRow> OnlinePlayers { get; } = [];
 
-    public string RuleText => Admins.Count == 0
-        ? "Nobody is listed, so everybody on the LAN counts as admin."
-        : "Only the admins below may grab players in game.";
+    public string RuleText {
+        get {
+            if (Admins.Count == 0) {
+                return "Nobody is listed, so everybody on the LAN counts as admin.";
+            }
+            return "Only the admins below may grab players in game.";
+        }
+    }
 
     public void Load() {
         Admins.Clear();

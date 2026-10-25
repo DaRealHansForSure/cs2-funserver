@@ -55,9 +55,7 @@ public sealed class CameraRig {
         // from above; 0.75 of it fills the viewport without cutting corners off.
         FitDistance = MapRadius / MathF.Sin(halfFov) * 0.75f;
 
-        _current = topView
-            ? new State(MapCenter, 0f, MaxPitch, TopViewZoom)
-            : new State(MapCenter, DefaultYaw, DefaultPitch, 1f);
+        _current = HomeState(topView);
         _to = _current;
         _animationProgress = 1f;
         _changed = true;
@@ -121,10 +119,15 @@ public sealed class CameraRig {
     }
 
     public void Reset(bool topView) {
-        var reset = topView
-            ? new State(MapCenter, 0f, MaxPitch, TopViewZoom)
-            : new State(MapCenter, DefaultYaw, DefaultPitch, 1f);
-        Apply(reset, animate: true);
+        Apply(HomeState(topView), animate: true);
+    }
+
+    /// <summary>The camera a freshly loaded map starts with and Reset returns to.</summary>
+    private State HomeState(bool topView) {
+        if (topView) {
+            return new State(MapCenter, 0f, MaxPitch, TopViewZoom);
+        }
+        return new State(MapCenter, DefaultYaw, DefaultPitch, 1f);
     }
 
     /// <summary>Follow mode: glides the target to the player, keeps angle and distance.</summary>
@@ -188,9 +191,11 @@ public sealed class CameraRig {
 
         // Straight down, Z up is parallel to the view and the camera would
         // flip; the horizontal view direction is a stable "up" instead.
-        Vector3 up = _current.Pitch >= MaxPitch - 0.5f
-            ? new Vector3(-MathF.Sin(yaw), MathF.Cos(yaw), 0)
-            : Vector3.UnitZ;
+        Vector3 up = Vector3.UnitZ;
+        bool isLookingStraightDown = _current.Pitch >= MaxPitch - 0.5f;
+        if (isLookingStraightDown) {
+            up = new Vector3(-MathF.Sin(yaw), MathF.Cos(yaw), 0);
+        }
         return new CameraPose(position, look, up);
     }
 

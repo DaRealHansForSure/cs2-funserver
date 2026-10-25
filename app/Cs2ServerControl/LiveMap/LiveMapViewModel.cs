@@ -246,8 +246,24 @@ public sealed partial class LiveMapViewModel : ObservableObject, IScreen {
         }
     }
 
-    public string SelectedHealthText => SelectedPlayer == null ? "" : $"{(SelectedPlayer.IsAlive ? SelectedPlayer.Health : 0)} HP";
-    public double SelectedHealthPercent => SelectedPlayer == null || !SelectedPlayer.IsAlive ? 0 : Math.Clamp(SelectedPlayer.Health, 0, 100);
+    public string SelectedHealthText {
+        get {
+            if (SelectedPlayer == null) {
+                return "";
+            }
+            int health = SelectedPlayer.IsAlive ? SelectedPlayer.Health : 0;
+            return $"{health} HP";
+        }
+    }
+
+    public double SelectedHealthPercent {
+        get {
+            if (SelectedPlayer == null || !SelectedPlayer.IsAlive) {
+                return 0;
+            }
+            return Math.Clamp(SelectedPlayer.Health, 0, 100);
+        }
+    }
 
     public ImageSource? SelectedWeaponIcon => SelectedPlayer?.WeaponIcon;
 
