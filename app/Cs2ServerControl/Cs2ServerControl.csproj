@@ -13,7 +13,7 @@
     <AssemblyName>Cs2ServerControl</AssemblyName>
     <RootNamespace>Cs2ServerControl</RootNamespace>
     <Product>CS2 Server Control</Product>
-    <Version>0.1.0</Version>
+    <Version>0.4.0</Version>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>app.ico</ApplicationIcon>
     <PackageRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..\'))</PackageRoot>
